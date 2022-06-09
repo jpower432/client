@@ -1,5 +1,12 @@
 package model
 
+// Tree defines methods to connect node types.
+// Not fully implemented
+type Tree interface {
+	Rooted
+	From(Node) []Node
+}
+
 // Root defines methods to locate the root of the
 // data set.
 type Rooted interface {
@@ -21,16 +28,17 @@ type Node interface {
 // Edge defines methods for node relationship
 // information.
 type Edge interface {
-	// ID is a unique value assigned to the node.
+	// To is the destination node.
 	To() Node
-	// Address is the location where the data is stored
+	// From is the origin node.
 	From() Node
 }
 
 // Iterator defines method for traversing node data in
 // a specified order.
 type Iterator interface {
-	// Returns true if there is more data to iterate.
+	// Next returns true if there is more data to iterate.
+	// and will increment.
 	Next() bool
 	// Node will return the node in the current position.
 	Node() Node
@@ -40,11 +48,10 @@ type Iterator interface {
 	Error() error
 }
 
-// Query defines methods used for node searching.
-type Query interface {
-	// List the query string
-	List() string
-	// Perform the search. If the node could not
-	// be located, nil is returned.
-	Do() (Node, error)
+// Match defines methods used for node searching.
+type Matcher interface {
+	// String returns a string that describes the match criteria
+	String() string
+	// Matches evaluates the current node against the criteria.
+	Matches(node Node) bool
 }
