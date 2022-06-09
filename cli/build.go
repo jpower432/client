@@ -164,7 +164,7 @@ func (o *BuildOptions) Run(ctx context.Context) error {
 			if !ok {
 				return fmt.Errorf("link %q: value should be of type string", link)
 			}
-			to := c.Node(fpath)
+			to := c.NodeByID(fpath)
 			edge := collection.NewEdge(node, to)
 			if err := c.AddEdge(edge); err != nil {
 				return err

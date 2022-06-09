@@ -21,9 +21,9 @@ func (c *Collection) EdgeSubgraph(id string, edgeFn EdgeFunc) Collection {
 	return *out
 }
 
-// Subgraph returns the directed subgraph with only the nodes and edges that match the
+// Subset returns a subset of the Collection with only the nodes and edges that match the
 // provided functions.
-func (c *Collection) Subgraph(id string, nodeFn NodeFunc, edgeFn EdgeFunc) Collection {
+func (c *Collection) Subset(id string, nodeFn NodeFunc, edgeFn EdgeFunc) Collection {
 	out := NewCollection(id)
 	for _, node := range c.Nodes() {
 		if nodeFn(node) {
@@ -34,9 +34,9 @@ func (c *Collection) Subgraph(id string, nodeFn NodeFunc, edgeFn EdgeFunc) Colle
 	return *out
 }
 
-// SubgraphWithNodes returns the directed subgraph with only the listed nodes and edges that
+// SubsetWithNodes returns a subset of the collection with only the listed nodes and edges that
 // match the provided function.
-func (c *Collection) SubgraphWithNodes(id string, nodes []model.Node, fn EdgeFunc) Collection {
+func (c *Collection) SubsetWithNodes(id string, nodes []model.Node, fn EdgeFunc) Collection {
 	out := NewCollection(id)
 	for _, node := range nodes {
 		out.AddNode(node)

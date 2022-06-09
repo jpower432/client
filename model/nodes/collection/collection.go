@@ -9,14 +9,15 @@ import (
 )
 
 var (
-	_ model.Node   = &Collection{}
-	_ model.Rooted = &Collection{}
+	_ model.Node     = &Collection{}
+	_ model.Rooted   = &Collection{}
+	_ model.Iterator = &Collection{}
 )
 
-// Collection represents a subtree and can represent on OCI artifact.
+// Collection is implementation of a model Node represent one OCI artifact.
 type Collection struct {
-	id       string
-	Location string
+	// unique ID for the collection
+	id string
 	// nodes describes all nodes contained in the graph
 	nodes map[string]model.Node
 	// from describes all edges with the
@@ -25,15 +26,20 @@ type Collection struct {
 	// to describes all edges with the
 	// destination node as the map key
 	to map[string]map[string]model.Edge
+	// Location of the collection (local or remote)
+	Location string
+	// Iterator for the collection node
+	*OrderedNodes
 }
 
-// NewGraph creates an empty Graph.
+// NewCollection creates an empty Collection with the specified ID.
 func NewCollection(id string) *Collection {
 	return &Collection{
-		id:    id,
-		nodes: map[string]model.Node{},
-		from:  map[string]map[string]model.Edge{},
-		to:    map[string]map[string]model.Edge{},
+		id:           id,
+		nodes:        map[string]model.Node{},
+		from:         map[string]map[string]model.Edge{},
+		to:           map[string]map[string]model.Edge{},
+		OrderedNodes: NewOrderedNodes(nil),
 	}
 }
 
@@ -60,7 +66,7 @@ func (c *Collection) Attributes() map[string]string {
 }
 
 // Node returns the node based on the ID if the node exists.
-func (c *Collection) Node(id string) model.Node {
+func (c *Collection) NodeByID(id string) model.Node {
 	node, ok := c.nodes[id]
 	if !ok {
 		return nil
