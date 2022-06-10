@@ -25,6 +25,12 @@ type Node interface {
 	Attributes() map[string]string
 }
 
+// NodeBuilder defines methods to build new nodes.
+type NodeBuilder interface {
+	// Build create a new immutable node.
+	Build(string) (Node, error)
+}
+
 // Edge defines methods for node relationship
 // information.
 type Edge interface {

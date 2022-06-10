@@ -61,22 +61,3 @@ func (c *Collection) setEdgeTo(edge model.Edge) {
 	to[edge.From().ID()] = edge
 	c.to[edge.To().ID()] = to
 }
-
-// Build completes any required actions for assembly
-// before return the final immutable collection.
-// At node build time create and attach the iterator.
-func (c *Collection) Build(nodes []model.Node, edges []model.Edge) (Collection, error) {
-	for _, node := range nodes {
-		if err := c.AddNode(node); err != nil {
-			return Collection{}, err
-		}
-	}
-	for _, edge := range edges {
-		if err := c.AddEdge(edge); err != nil {
-			return Collection{}, err
-		}
-	}
-	itr := NewOrderedNodes(c.Nodes())
-	c.OrderedNodes = itr
-	return *c, nil
-}
