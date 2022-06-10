@@ -7,7 +7,7 @@ import (
 	"github.com/uor-framework/client/model"
 )
 
-// ErrBudgeExceeded is an error that described the event where
+// ErrBudgetExceeded is an error that described the event where
 // the maximum amount of nodes have been visited with no match.
 type ErrBudgetExceeded struct {
 	Node model.Node

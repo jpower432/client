@@ -2,7 +2,7 @@ package collection
 
 import "github.com/uor-framework/client/model"
 
-// Edges defines a relationship
+// Edge defines a relationship
 // between two Nodes.
 type Edge struct {
 	F model.Node

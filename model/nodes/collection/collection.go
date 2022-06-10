@@ -65,7 +65,7 @@ func (c *Collection) Attributes() map[string]string {
 	return attributes
 }
 
-// Node returns the node based on the ID if the node exists.
+// NodeByID returns the node based on the ID if the node exists.
 func (c *Collection) NodeByID(id string) model.Node {
 	node, ok := c.nodes[id]
 	if !ok {

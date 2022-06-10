@@ -7,7 +7,7 @@ type Tree interface {
 	From(Node) []Node
 }
 
-// Root defines methods to locate the root of the
+// Rooted defines methods to locate the root of the
 // data set.
 type Rooted interface {
 	Root() (Node, error)
@@ -43,7 +43,7 @@ type Edge interface {
 // Iterator defines method for traversing node data in
 // a specified order.
 type Iterator interface {
-	// Next returns true if there is more data to iterate.
+	// Next returns true if there is more data to iterate
 	// and will increment.
 	Next() bool
 	// Node will return the node in the current position.
@@ -54,7 +54,7 @@ type Iterator interface {
 	Error() error
 }
 
-// Match defines methods used for node searching.
+// Matcher defines methods used for node searching.
 type Matcher interface {
 	// String returns a string that describes the match criteria
 	String() string

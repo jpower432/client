@@ -61,7 +61,7 @@ func (t Tracker) Walk(n model.Node, fn VisitFn) error {
 	})
 }
 
-// Walk using recursive DFS to walk the traverse as many nodes
+// WalkRecursively using recursive DFS to walk the traverse as many nodes
 // as possible until the node budget is it or the whole tree
 // is traversed.
 func (t Tracker) WalkRecursively(n model.Node, fn VisitFn) error {
@@ -169,22 +169,20 @@ func (t Tracker) walkIterative(n model.Node, fn VisitFn) error {
 			return err
 		}
 
-		// Recurse if the node type implements an iterator
-		// (i.e. this a node of nodes)
-		itr, ok := n.(model.Iterator)
-		if ok {
-			for itr.Next() {
-				n := itr.Node()
-				stack = append(stack, n)
-			}
-			return nil
-		}
-
 		// Iterate over children per the tree.
 		// TODO(jpower432): the impl of this will most
 		// likely change once the Tree is fully implemented
 		// in-order traversal.
 		stack = append(stack, t.Tree.From(n)...)
+
+		// Recurse if the node type implements an iterator
+		// (i.e. this a node of nodes)
+		itr, ok := n.(model.Iterator)
+		if ok {
+			for itr.Next() {
+				stack = append(stack, itr.Node())
+			}
+		}
 	}
 	return nil
 }
@@ -234,10 +232,8 @@ func (t Tracker) walkBFS(n model.Node, m model.Matcher, fn VisitFn) error {
 		itr, ok := n.(model.Iterator)
 		if ok {
 			for itr.Next() {
-				n := itr.Node()
-				queue = append(queue, n)
+				queue = append(queue, itr.Node())
 			}
-			return nil
 		}
 
 		// Iterate over children per the tree.

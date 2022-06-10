@@ -35,10 +35,10 @@ func TestTracker_Walk(t *testing.T) {
 
 			t: Tracker{
 				Budget: &Budget{
-					NodeBudget: 5,
+					NodeBudget: 8,
 				},
 				Tree: &mockTree{root: &mockNode{id: "node1"}, nodes: map[string][]model.Node{
-					"node1": {&mockIterableNode{id: "node2", nodes: []model.Node{&mockNode{id: "node3"}}}}},
+					"node1": {&mockIterableNode{id: "node2", idx: -1, nodes: []model.Node{&mockNode{id: "node3"}}}}},
 				},
 				Seen: map[string]struct{}{},
 			},
