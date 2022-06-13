@@ -83,6 +83,158 @@ func TestTracker_Walk(t *testing.T) {
 	}
 }
 
+func TestTracker_WalkRecursively(t *testing.T) {
+	type spec struct {
+		name           string
+		t              Tracker
+		expError       error
+		expInvocations int
+	}
+
+	cases := []spec{
+		{
+			name: "Success/VisitRootNode",
+
+			t: Tracker{
+				Budget: &Budget{
+					NodeBudget: 3,
+				},
+				Tree: &mockTree{root: &mockNode{id: "node1"}, nodes: map[string][]model.Node{
+					"node1": {&mockNode{id: "node2"}}},
+				},
+				Seen: map[string]struct{}{},
+			},
+			expInvocations: 2,
+		},
+		{
+			name: "Success/WithIterableNode",
+
+			t: Tracker{
+				Budget: &Budget{
+					NodeBudget: 8,
+				},
+				Tree: &mockTree{root: &mockNode{id: "node1"}, nodes: map[string][]model.Node{
+					"node1": {&mockIterableNode{id: "node2", idx: -1, nodes: []model.Node{&mockNode{id: "node3"}}}}},
+				},
+				Seen: map[string]struct{}{},
+			},
+			expInvocations: 3,
+		},
+		{
+			name: "Failure/ExceededBudget",
+
+			t: Tracker{
+				Budget: &Budget{
+					NodeBudget: 0,
+				},
+				Tree: &mockTree{root: &mockNode{id: "node1"}, nodes: map[string][]model.Node{
+					"node1": {&mockNode{id: "node2"}}},
+				},
+				Seen: map[string]struct{}{},
+			},
+			expInvocations: 0,
+			expError:       &ErrBudgetExceeded{},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var actualInvocations int
+			visit := func(t Tracker, n model.Node) error {
+				actualInvocations++
+				return nil
+			}
+
+			root, err := c.t.Tree.Root()
+			require.NoError(t, err)
+			err = c.t.WalkRecursively(root, visit)
+
+			if c.expError != nil {
+				require.ErrorAs(t, err, &c.expError)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, c.expInvocations, actualInvocations)
+			}
+		})
+	}
+}
+
+func TestTracker_WalkWithStop(t *testing.T) {
+	type spec struct {
+		name           string
+		t              Tracker
+		m              model.Matcher
+		expError       error
+		expInvocations int
+	}
+
+	cases := []spec{
+		{
+			name: "Success/VisitRootNode",
+			t: Tracker{
+				Budget: &Budget{
+					NodeBudget: 3,
+				},
+				Tree: &mockTree{root: &mockNode{id: "node1"}, nodes: map[string][]model.Node{
+					"node1": {&mockNode{id: "node2"}}},
+				},
+				Seen: map[string]struct{}{},
+			},
+			m:              &mockMatcher{"node1"},
+			expInvocations: 1,
+		},
+		{
+			name: "Success/WithIterableNode",
+
+			t: Tracker{
+				Budget: &Budget{
+					NodeBudget: 8,
+				},
+				Tree: &mockTree{root: &mockNode{id: "node1"}, nodes: map[string][]model.Node{
+					"node1": {&mockIterableNode{id: "node2", idx: -1, nodes: []model.Node{&mockNode{id: "node3"}}}}},
+				},
+				Seen: map[string]struct{}{},
+			},
+			m:              &mockMatcher{"node2"},
+			expInvocations: 2,
+		},
+		{
+			name: "Success/NilMatcher",
+			t: Tracker{
+				Budget: &Budget{
+					NodeBudget: 0,
+				},
+				Tree: &mockTree{root: &mockNode{id: "node1"}, nodes: map[string][]model.Node{
+					"node1": {&mockNode{id: "node2"}}},
+				},
+				Seen: map[string]struct{}{},
+			},
+			expInvocations: 0,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var actualInvocations int
+			visit := func(t Tracker, n model.Node) error {
+				actualInvocations++
+				return nil
+			}
+
+			root, err := c.t.Tree.Root()
+			require.NoError(t, err)
+			err = c.t.WalkWithStop(root, c.m, visit)
+
+			if c.expError != nil {
+				require.ErrorAs(t, err, &c.expError)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, c.expInvocations, actualInvocations)
+			}
+		})
+	}
+}
+
 // Mock node types
 type mockNode struct {
 	id         string
@@ -169,4 +321,20 @@ func (m *mockTree) Root() (model.Node, error) {
 
 func (m *mockTree) From(n model.Node) []model.Node {
 	return m.nodes[n.ID()]
+}
+
+// Mock Matcher
+
+type mockMatcher struct {
+	criteria string
+}
+
+var _ model.Matcher = &mockMatcher{}
+
+func (m *mockMatcher) String() string {
+	return ""
+}
+
+func (m *mockMatcher) Matches(n model.Node) bool {
+	return n.ID() == m.criteria
 }

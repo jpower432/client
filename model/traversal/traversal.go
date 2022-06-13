@@ -190,22 +190,21 @@ func (t Tracker) walkIterative(n model.Node, fn VisitFn) error {
 // walkBFS uses a BFS algorithm to traverse the tree.
 func (t Tracker) walkBFS(n model.Node, m model.Matcher, fn VisitFn) error {
 
-	if n == nil {
+	if n == nil || m == nil {
 		return nil
 	}
 
+	fmt.Println("here")
 	// Starting simple using a slice to implement a queue.
 	// TODO(jpower432): Possibly add a linked list implementation
 	// to allow more flexibility if needed.
 	queue := []model.Node{n}
 
+	fmt.Println(queue)
+
 	for len(queue) != 0 {
 		n := queue[0]
 		queue = queue[1:]
-
-		if m.Matches(n) {
-			break
-		}
 
 		if _, seen := t.Seen[n.ID()]; seen {
 			continue
@@ -225,6 +224,10 @@ func (t Tracker) walkBFS(n model.Node, m model.Matcher, fn VisitFn) error {
 				return nil
 			}
 			return err
+		}
+
+		if m.Matches(n) {
+			break
 		}
 
 		// Recurse if the node type implements an iterator
