@@ -9,3 +9,4 @@ Design: Collections
 - A collection represents one OCI artifact that can contain one to many descriptors that reference eachother.
 - A collection must be rooted meaning it must contain a URO.
 - Collections are build with the builder. They may have a "next" annotation is symbolize a connection to another collection or node.
+- All attributes from child nodes are aggregated to parent nodes to allow for greedy BFS.

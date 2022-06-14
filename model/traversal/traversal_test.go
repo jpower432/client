@@ -238,7 +238,7 @@ func TestTracker_WalkWithStop(t *testing.T) {
 // Mock node types
 type mockNode struct {
 	id         string
-	attributes map[string]string
+	attributes model.Attributes
 }
 
 var _ model.Node = &mockNode{}
@@ -251,14 +251,14 @@ func (m *mockNode) Address() string {
 	return "address"
 }
 
-func (m *mockNode) Attributes() map[string]string {
+func (m *mockNode) Attributes() model.Attributes {
 	return m.attributes
 }
 
 type mockIterableNode struct {
 	id         string
 	idx        int
-	attributes map[string]string
+	attributes model.Attributes
 	nodes      []model.Node
 }
 
@@ -272,7 +272,7 @@ func (m *mockIterableNode) Address() string {
 	return "address"
 }
 
-func (m *mockIterableNode) Attributes() map[string]string {
+func (m *mockIterableNode) Attributes() model.Attributes {
 	return m.attributes
 }
 

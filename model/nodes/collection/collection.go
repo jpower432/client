@@ -55,14 +55,15 @@ func (c *Collection) Address() string {
 
 // Attributes returns a collection of all the
 // attributes contained within the collection nodes.
-func (c *Collection) Attributes() map[string]string {
-	attributes := map[string]string{}
-	for _, node := range c.Nodes() {
-		for k, v := range node.Attributes() {
-			attributes[k] = v
-		}
+// Because each parent node should inherit the attributes all
+// of the attached child node, the root node will contain attributes
+// for the entire collection. If no root node exists, nil is returned.
+func (c *Collection) Attributes() model.Attributes {
+	root, err := c.Root()
+	if err == nil {
+		return root.Attributes()
 	}
-	return attributes
+	return nil
 }
 
 // NodeByID returns the node based on the ID if the node exists.
@@ -111,18 +112,6 @@ func (c *Collection) Edge(from, to string) model.Edge {
 func (c *Collection) HasEdgeFromTo(from, to string) bool {
 	_, ok := c.from[to][from]
 	return ok
-}
-
-// HasEdgeBetween returns whether there is an edge
-// from the destination to the origin Node.
-func (c *Collection) HasEdgeBetween(from, to string) bool {
-	if _, ok := c.to[to][from]; ok {
-		return true
-	}
-	if _, ok := c.from[from][to]; ok {
-		return true
-	}
-	return false
 }
 
 // From returns a list of Nodes connected

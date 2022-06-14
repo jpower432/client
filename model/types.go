@@ -22,7 +22,7 @@ type Node interface {
 	Address() string
 	// Attributes defines the attributes associated
 	// with the node data
-	Attributes() map[string]string
+	Attributes() Attributes
 }
 
 // NodeBuilder defines methods to build new nodes.
@@ -60,4 +60,15 @@ type Matcher interface {
 	String() string
 	// Matches evaluates the current node against the criteria.
 	Matches(node Node) bool
+}
+
+// Attributes defines methods for manipulating attribute
+type Attributes interface {
+	// Exists returns whether a key, value pair exists
+	Exists(string, string) bool
+	// Find returns all values associated with a specified key
+	Find(string) []string
+	// String returns a string representation of the
+	// attribute set.
+	String() string
 }

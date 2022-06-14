@@ -25,6 +25,8 @@ func NewAttributeMatcher(attributes map[string]string) model.Matcher {
 
 // String list all attributes in the Matcher in a string format.
 func (m AttributeMatcher) String() string {
+	// TODO(jpower432): Add this to the utils package for 
+	// reusability
 	out := new(strings.Builder)
 	keys := make([]string, 0, len(m.attributes))
 	for k := range m.attributes {
@@ -41,11 +43,8 @@ func (m AttributeMatcher) String() string {
 // Matches determines whether a node has all required attributes.
 func (m AttributeMatcher) Matches(n model.Node) bool {
 	for key, value := range m.attributes {
-		nodeVal, exist := n.Attributes()[key]
-		if !exist {
-			return false
-		}
-		if nodeVal != value {
+		attr := n.Attributes()
+		if exist := attr.Exists(key, value); !exist {
 			return false
 		}
 	}
