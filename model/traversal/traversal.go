@@ -124,7 +124,7 @@ func (t Tracker) walkRecursive(n model.Node, fn VisitFn) error {
 	// Recurse on children per the tree
 	// TODO(jpower432): the impl of this will most
 	// likely change once the Tree is fully implemented
-	// for in-order traversal.
+	// to use pre-order traversal.
 	for _, neighbor := range t.Tree.From(n) {
 		if err := t.Walk(neighbor, fn); err != nil {
 			return err
@@ -194,13 +194,10 @@ func (t Tracker) walkBFS(n model.Node, m model.Matcher, fn VisitFn) error {
 		return nil
 	}
 
-	fmt.Println("here")
 	// Starting simple using a slice to implement a queue.
 	// TODO(jpower432): Possibly add a linked list implementation
 	// to allow more flexibility if needed.
 	queue := []model.Node{n}
-
-	fmt.Println(queue)
 
 	for len(queue) != 0 {
 		n := queue[0]
@@ -242,7 +239,7 @@ func (t Tracker) walkBFS(n model.Node, m model.Matcher, fn VisitFn) error {
 		// Iterate over children per the tree.
 		// TODO(jpower432): the impl of this will most
 		// likely change once the Tree is fully implemented
-		// in-order traversal.
+		// to use pre-order traversal.
 		queue = append(queue, t.Tree.From(n)...)
 	}
 	return nil
