@@ -8,45 +8,70 @@ import (
 	"github.com/uor-framework/client/model"
 )
 
-// AttributeMatcher contains configuration data for searching for a node by attribute.
-type AttributeMatcher struct {
-	attributes map[string]string
-}
+var (
+	_ model.Matcher = &PartialAttributeMatcher{}
+	_ model.Matcher = &ExactAttributeMatcher{}
+)
 
-var _ model.Matcher = &AttributeMatcher{}
-
-// NewAttributeMatcher returns a new assembled matcher.
-func NewAttributeMatcher(attributes map[string]string) model.Matcher {
-	matcher := &AttributeMatcher{
-		attributes: attributes,
-	}
-	return matcher
-}
+// PartialAttributeMatcher contains configuration data for searching for a node by attribute.
+// This matcher will check that the node attributes
+type PartialAttributeMatcher map[string]string
 
 // String list all attributes in the Matcher in a string format.
-func (m AttributeMatcher) String() string {
-	// TODO(jpower432): Add this to the utils package for 
-	// reusability
-	out := new(strings.Builder)
-	keys := make([]string, 0, len(m.attributes))
-	for k := range m.attributes {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, key := range keys {
-		line := fmt.Sprintf("%s=%s,", key, m.attributes[key])
-		out.WriteString(line)
-	}
-	return strings.TrimSuffix(out.String(), ",")
+func (m PartialAttributeMatcher) String() string {
+	return renderMatcher(m)
 }
 
 // Matches determines whether a node has all required attributes.
-func (m AttributeMatcher) Matches(n model.Node) bool {
-	for key, value := range m.attributes {
-		attr := n.Attributes()
+func (m PartialAttributeMatcher) Matches(n model.Node) bool {
+	attr := n.Attributes()
+	if attr == nil {
+		return false
+	}
+	for key, value := range m {
 		if exist := attr.Exists(key, value); !exist {
 			return false
 		}
 	}
 	return true
+}
+
+// ExactAttributeMatcher contains configuration data for searching for a node by attribute.
+type ExactAttributeMatcher map[string]string
+
+// String list all attributes in the Matcher in a string format.
+func (m ExactAttributeMatcher) String() string {
+	return renderMatcher(m)
+}
+
+// Matches determines whether a node has all required attributes.
+func (m ExactAttributeMatcher) Matches(n model.Node) bool {
+	attr := n.Attributes()
+	if attr == nil {
+		return false
+	}
+	if len(m) != attr.Len() {
+		return false
+	}
+	for key, value := range m {
+		if exist := attr.Exists(key, value); !exist {
+			return false
+		}
+	}
+	return true
+}
+
+// renderMatcher will render an attribute matcher as a string
+func renderMatcher(m map[string]string) string {
+	out := new(strings.Builder)
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		line := fmt.Sprintf("%s=%s,", key, m[key])
+		out.WriteString(line)
+	}
+	return strings.TrimSuffix(out.String(), ",")
 }

@@ -5,23 +5,27 @@ import (
 	"github.com/uor-framework/client/model/traversal"
 )
 
-// FindFirstNode will search the given tree and find the first node that
-// meets the attribute criteria.
-// TODO(jpower432): Use greedy approach with a priority queue here instead of using the traversal
-// package possibly.
-func FindFirstNode(m AttributeMatcher, t model.Tree) (model.Node, error) {
-	var result model.Node
+// FindAllPartialMatches will search the given tree and find all nodes that
+// meet the attribute criteria, but may have additional attributes.
+func FindAllPartialMatches(m PartialAttributeMatcher, t model.Tree) ([]model.Node, error) {
+	var result []model.Node
 	err := traversal.Walk(t, func(t traversal.Tracker, n model.Node) error {
+		if m.Matches(n) {
+			result = append(result, n)
+		}
 		return nil
 	})
 	return result, err
 }
 
-// FindAllNodes will search the given tree and find all nodes that
-// meet the attribute criteria.
-func FindAllNodes(m AttributeMatcher, t model.Tree) ([]model.Node, error) {
+// FindAllExactMatches will search the given tree and find all nodes that
+// meet the attribute criteria exactly.
+func FindAllExactMatches(m ExactAttributeMatcher, t model.Tree) ([]model.Node, error) {
 	var result []model.Node
 	err := traversal.Walk(t, func(t traversal.Tracker, n model.Node) error {
+		if m.Matches(n) {
+			result = append(result, n)
+		}
 		return nil
 	})
 	return result, err

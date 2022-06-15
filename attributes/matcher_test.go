@@ -7,17 +7,16 @@ import (
 	"github.com/uor-framework/client/util/testutils"
 )
 
-func TestMatcher_String(t *testing.T) {
+func TestPartialMatcher_String(t *testing.T) {
 	expString := `kind=jpg,name=fish.jpg`
-	attributes := map[string]string{
+	m := PartialAttributeMatcher{
 		"kind": "jpg",
 		"name": "fish.jpg",
 	}
-	m := NewAttributeMatcher(attributes)
 	require.Equal(t, expString, m.String())
 }
 
-func TestMatches(t *testing.T) {
+func TestPartialMatches(t *testing.T) {
 	mockAttributes := testutils.MockAttributes{
 		"kind":    "jpg",
 		"name":    "fish.jpg",
@@ -25,6 +24,6 @@ func TestMatches(t *testing.T) {
 	}
 
 	n := &testutils.MockNode{A: mockAttributes}
-	m := NewAttributeMatcher(mockAttributes)
+	m := PartialAttributeMatcher{"kind": "jpg"}
 	require.True(t, m.Matches(n))
 }

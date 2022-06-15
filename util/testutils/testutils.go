@@ -8,8 +8,11 @@ var (
 	_ model.Node       = &MockIterableNode{}
 )
 
+// MockNode implements the model.Node interface for testing.
 type MockNode struct {
+	// Node ID
 	I string
+	// Node Attributes
 	A model.Attributes
 }
 
@@ -25,6 +28,7 @@ func (m *MockNode) Attributes() model.Attributes {
 	return m.A
 }
 
+// MockAttributes implements the model.Attributes interface for testing.
 type MockAttributes map[string]string
 
 func (m MockAttributes) Find(key string) []string {
@@ -59,10 +63,15 @@ func (m MockAttributes) List() map[string][]string {
 	return nil
 }
 
+// MockNode implements the model.Node and model.Iterator interface for testing.
 type MockIterableNode struct {
-	I     string
+	// Node ID
+	I string
+	// Iterator Index
 	Index int
-	A     model.Attributes
+	// Node Attributes
+	A model.Attributes
+	// Iterable nodes list
 	Nodes []model.Node
 }
 

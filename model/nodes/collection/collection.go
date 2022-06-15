@@ -10,7 +10,6 @@ import (
 
 var (
 	_ model.Node     = &Collection{}
-	_ model.Tree     = &Collection{}
 	_ model.Rooted   = &Collection{}
 	_ model.Iterator = &Collection{}
 )
@@ -36,10 +35,10 @@ type Collection struct {
 // NewCollection creates an empty Collection with the specified ID.
 func NewCollection(id string) *Collection {
 	return &Collection{
-		id:                           id,
-		nodes:                        map[string]model.Node{},
-		from:                         map[string]map[string]model.Edge{},
-		to:                           map[string]map[string]model.Edge{},
+		id:                   id,
+		nodes:                map[string]model.Node{},
+		from:                 map[string]map[string]model.Edge{},
+		to:                   map[string]map[string]model.Edge{},
 		ByAttributesIterator: NewByAttributesIterator(nil),
 	}
 }

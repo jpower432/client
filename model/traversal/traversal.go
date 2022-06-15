@@ -41,7 +41,7 @@ func Walk(t model.Tree, fn VisitFn) error {
 }
 
 // WalkBFS traverses all nodes in the tree
-// using breadth first search
+// using breadth first search.
 func WalkBFS(t model.Tree, fn VisitFn) error {
 	// TODO(jpower432): Set a sane default here
 	tracker := NewTracker(nil, t)
@@ -61,7 +61,7 @@ func (t Tracker) Walk(n model.Node, fn VisitFn) error {
 	})
 }
 
-// WalkBFS traverses all nodes in the tree using a BFS algorithm
+// WalkBFS traverses all nodes in the tree using a BFS algorithm.
 func (t Tracker) WalkBFS(n model.Node, fn VisitFn) error {
 	return t.walkBFS(n, func(t Tracker, n model.Node) error {
 		return fn(t, n)
