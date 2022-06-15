@@ -365,3 +365,15 @@ func (m mockAttributes) String() string {
 	}
 	return strings.TrimSuffix(out.String(), ",")
 }
+
+func (m mockAttributes) Merge(input model.Attributes) {
+	// Not implemented
+}
+
+func (m mockAttributes) List() map[string][]string {
+	return nil
+}
+
+func (m mockAttributes) Len() int {
+	return len(m)
+}

@@ -10,6 +10,7 @@ import (
 
 var (
 	_ model.Node     = &Collection{}
+	_ model.Tree     = &Collection{}
 	_ model.Rooted   = &Collection{}
 	_ model.Iterator = &Collection{}
 )
@@ -29,17 +30,17 @@ type Collection struct {
 	// Location of the collection (local or remote)
 	Location string
 	// Iterator for the collection node
-	*OrderedNodes
+	*ByAttributesIterator
 }
 
 // NewCollection creates an empty Collection with the specified ID.
 func NewCollection(id string) *Collection {
 	return &Collection{
-		id:           id,
-		nodes:        map[string]model.Node{},
-		from:         map[string]map[string]model.Edge{},
-		to:           map[string]map[string]model.Edge{},
-		OrderedNodes: NewOrderedNodes(nil),
+		id:                           id,
+		nodes:                        map[string]model.Node{},
+		from:                         map[string]map[string]model.Edge{},
+		to:                           map[string]map[string]model.Edge{},
+		ByAttributesIterator: NewByAttributesIterator(nil),
 	}
 }
 

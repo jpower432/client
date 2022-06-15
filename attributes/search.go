@@ -11,7 +11,7 @@ import (
 // package possibly.
 func FindFirstNode(m AttributeMatcher, t model.Tree) (model.Node, error) {
 	var result model.Node
-	err := traversal.WalkWithStop(t, m, func(t traversal.Tracker, n model.Node) error {
+	err := traversal.Walk(t, func(t traversal.Tracker, n model.Node) error {
 		return nil
 	})
 	return result, err

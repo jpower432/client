@@ -34,7 +34,7 @@ func (b *collectionBuilder) Build(id string) (model.Node, error) {
 			return nil, err
 		}
 	}
-	itr := NewOrderedNodes(c.Nodes())
-	c.OrderedNodes = itr
+	itr := NewByAttributesIterator(c.Nodes())
+	c.ByAttributesIterator = itr
 	return c, nil
 }

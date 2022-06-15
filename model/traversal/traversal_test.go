@@ -91,89 +91,7 @@ func TestTracker_Walk(t *testing.T) {
 	}
 }
 
-func TestTracker_WalkRecursively(t *testing.T) {
-	type spec struct {
-		name           string
-		t              Tracker
-		expError       error
-		expInvocations int
-	}
-
-	cases := []spec{
-		{
-			name: "Success/VisitRootNode",
-
-			t: Tracker{
-				Budget: &Budget{
-					NodeBudget: 3,
-				},
-				Tree: &mockTree{root: &testutils.MockNode{I: "node1"}, nodes: map[string][]model.Node{
-					"node1": {&testutils.MockNode{I: "node2"}}},
-				},
-				Seen: map[string]struct{}{},
-			},
-			expInvocations: 2,
-		},
-		{
-			name: "Success/WithIterableNode",
-
-			t: Tracker{
-				Budget: &Budget{
-					NodeBudget: 8,
-				},
-				Tree: &mockTree{root: &testutils.MockNode{I: "node1"}, nodes: map[string][]model.Node{
-					"node1": {
-						&testutils.MockIterableNode{
-							I:     "node2",
-							Index: -1,
-							Nodes: []model.Node{&testutils.MockNode{I: "node3"}}},
-					},
-				},
-				},
-				Seen: map[string]struct{}{},
-			},
-			expInvocations: 3,
-		},
-		{
-			name: "Failure/ExceededBudget",
-
-			t: Tracker{
-				Budget: &Budget{
-					NodeBudget: 0,
-				},
-				Tree: &mockTree{root: &testutils.MockNode{I: "node1"}, nodes: map[string][]model.Node{
-					"node1": {&testutils.MockNode{I: "node2"}}},
-				},
-				Seen: map[string]struct{}{},
-			},
-			expInvocations: 0,
-			expError:       &ErrBudgetExceeded{},
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			var actualInvocations int
-			visit := func(t Tracker, n model.Node) error {
-				actualInvocations++
-				return nil
-			}
-
-			root, err := c.t.Tree.Root()
-			require.NoError(t, err)
-			err = c.t.WalkRecursively(root, visit)
-
-			if c.expError != nil {
-				require.ErrorAs(t, err, &c.expError)
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, c.expInvocations, actualInvocations)
-			}
-		})
-	}
-}
-
-func TestTracker_WalkWithStop(t *testing.T) {
+func TestTracker_WalkBFS(t *testing.T) {
 	type spec struct {
 		name           string
 		t              Tracker
@@ -218,19 +136,6 @@ func TestTracker_WalkWithStop(t *testing.T) {
 			m:              &mockMatcher{"node2"},
 			expInvocations: 2,
 		},
-		{
-			name: "Success/NilMatcher",
-			t: Tracker{
-				Budget: &Budget{
-					NodeBudget: 0,
-				},
-				Tree: &mockTree{root: &testutils.MockNode{I: "node1"}, nodes: map[string][]model.Node{
-					"node1": {&testutils.MockNode{I: "node2"}}},
-				},
-				Seen: map[string]struct{}{},
-			},
-			expInvocations: 0,
-		},
 	}
 
 	for _, c := range cases {
@@ -238,12 +143,15 @@ func TestTracker_WalkWithStop(t *testing.T) {
 			var actualInvocations int
 			visit := func(t Tracker, n model.Node) error {
 				actualInvocations++
+				if c.m.Matches(n) {
+					return ErrSkip
+				}
 				return nil
 			}
 
 			root, err := c.t.Tree.Root()
 			require.NoError(t, err)
-			err = c.t.WalkWithStop(root, c.m, visit)
+			err = c.t.WalkBFS(root, visit)
 
 			if c.expError != nil {
 				require.ErrorAs(t, err, &c.expError)
@@ -267,8 +175,8 @@ func (m *mockTree) Root() (model.Node, error) {
 	return m.root, nil
 }
 
-func (m *mockTree) From(n model.Node) []model.Node {
-	return m.nodes[n.ID()]
+func (m *mockTree) From(id string) []model.Node {
+	return m.nodes[id]
 }
 
 // Mock Matcher

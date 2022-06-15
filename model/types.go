@@ -1,12 +1,10 @@
 package model
 
 // Tree defines methods to connect node types.
-// Not fully implemented.
-// TODO(jpower432): Find suitable open-source B-Tree library
-// for concrete implementation.
+// Not fully implemented. Still need to decided on the best suited structure.
 type Tree interface {
 	Rooted
-	From(Node) []Node
+	From(string) []Node
 }
 
 // Rooted defines methods to locate the root of the
@@ -78,4 +76,11 @@ type Attributes interface {
 	// String returns a string representation of the
 	// attribute set.
 	String() string
+	// Merge will merge the input Attributes with the receiver.
+	Merge(Attributes)
+	// List will list all key, value pairs for the attributes in a
+	// consumable format.
+	List() map[string][]string
+	// Len returns the attribute set length
+	Len() int
 }

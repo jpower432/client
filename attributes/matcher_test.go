@@ -7,7 +7,7 @@ import (
 	"github.com/uor-framework/client/util/testutils"
 )
 
-func TestString(t *testing.T) {
+func TestMatcher_String(t *testing.T) {
 	expString := `kind=jpg,name=fish.jpg`
 	attributes := map[string]string{
 		"kind": "jpg",

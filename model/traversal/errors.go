@@ -14,7 +14,7 @@ type ErrBudgetExceeded struct {
 }
 
 func (e *ErrBudgetExceeded) Error() string {
-	return fmt.Sprintf("traversal budget exceeded: node budget for reached zero while on node %v", e.Node)
+	return fmt.Sprintf("traversal budget exceeded: node budget for reached zero while on node %v", e.Node.Address())
 }
 
 // ErrSkip allows a node to be intentionally skipped.

@@ -1,27 +1,26 @@
 package basic
 
 import (
-	"fmt"
-	"sort"
-	"strings"
-
 	"github.com/uor-framework/client/model"
 )
 
 // Node defines a single unit containing information about a UOR dataset node.
 type Node struct {
-	id         string
-	attributes Attributes
-	Location   string
+	id string
+	// Since this is a basic node
+	// the Attrs field is exposed to allow
+	// updated when building graphs.
+	Attrs    model.Attributes
+	Location string
 }
 
 var _ model.Node = &Node{}
 
 // NewNode create an empty Basic Node.
-func NewNode(id string, attributes Attributes) *Node {
+func NewNode(id string, attributes model.Attributes) *Node {
 	return &Node{
-		id:         id,
-		attributes: attributes,
+		id:    id,
+		Attrs: attributes,
 	}
 }
 
@@ -38,46 +37,5 @@ func (n *Node) Address() string {
 
 // Attributes represents a collection of data defining the node.
 func (n *Node) Attributes() model.Attributes {
-	return n.attributes
-}
-
-// Attributes defines key, value pairs for attributes
-// defining a basic node
-type Attributes map[string]string
-
-var _ model.Attributes = &Attributes{}
-
-// Find returns all values stored for a specified key.
-func (a Attributes) Find(key string) []string {
-	val, exists := a[key]
-	if !exists {
-		return nil
-	}
-	return []string{val}
-}
-
-// Exists returns whether a key,value pair exists in the
-// attribute set.
-func (a Attributes) Exists(key, value string) bool {
-	val, exists := a[key]
-	if !exists {
-		return false
-	}
-	return val == value
-}
-
-// Strings returns a string representation of the
-// attribute set.
-func (a Attributes) String() string {
-	out := new(strings.Builder)
-	keys := make([]string, 0, len(a))
-	for k := range a {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, key := range keys {
-		line := fmt.Sprintf("%s=%s,", key, a[key])
-		out.WriteString(line)
-	}
-	return strings.TrimSuffix(out.String(), ",")
+	return n.Attrs
 }

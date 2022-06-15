@@ -47,6 +47,18 @@ func (m MockAttributes) String() string {
 	return ""
 }
 
+func (m MockAttributes) Len() int {
+	return len(m)
+}
+
+func (m MockAttributes) Merge(input model.Attributes) {
+	// Not implemented
+}
+
+func (m MockAttributes) List() map[string][]string {
+	return nil
+}
+
 type MockIterableNode struct {
 	I     string
 	Index int

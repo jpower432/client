@@ -1,4 +1,4 @@
-package collection
+package attributes
 
 import (
 	"testing"
@@ -36,7 +36,7 @@ func TestFind(t *testing.T) {
 	require.Contains(t, result, "txt")
 }
 
-func TestString(t *testing.T) {
+func TestAttributes_String(t *testing.T) {
 	expString := `kind=jpg,kind=txt,name=fish.jpg`
 	attributes := Attributes{
 		"kind": map[string]struct{}{
