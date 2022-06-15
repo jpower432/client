@@ -1,7 +1,9 @@
 package model
 
 // Tree defines methods to connect node types.
-// Not fully implemented
+// Not fully implemented.
+// TODO(jpower432): Find suitable open-source B-Tree library
+// for concrete implementation.
 type Tree interface {
 	Rooted
 	From(Node) []Node
@@ -33,6 +35,9 @@ type NodeBuilder interface {
 
 // Edge defines methods for node relationship
 // information.
+// This may eventually include weight information to
+// represent nodes at addresses that are a longer
+// distance from the source.
 type Edge interface {
 	// To is the destination node.
 	To() Node
@@ -62,7 +67,9 @@ type Matcher interface {
 	Matches(node Node) bool
 }
 
-// Attributes defines methods for manipulating attribute
+// Attributes defines methods for manipulating attribute sets.
+// Nodes have set of attributes that allow them to self-describe and
+// describe connected nodes.
 type Attributes interface {
 	// Exists returns whether a key, value pair exists
 	Exists(string, string) bool

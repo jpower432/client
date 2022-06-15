@@ -9,7 +9,7 @@ import (
 
 // Tracker contains information needed for tree traversal.
 type Tracker struct {
-	// Tree defines node relationships and
+	// Tree defines node relationships
 	Tree model.Tree
 	// Budget tracks traversal maximums such as maximum visited nodes.
 	Budget *Budget

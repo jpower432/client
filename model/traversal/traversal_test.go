@@ -4,7 +4,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/uor-framework/client/model"
+	"github.com/uor-framework/client/util/testutils"
 )
 
 func TestTracker_Walk(t *testing.T) {
@@ -23,8 +25,8 @@ func TestTracker_Walk(t *testing.T) {
 				Budget: &Budget{
 					NodeBudget: 3,
 				},
-				Tree: &mockTree{root: &mockNode{id: "node1"}, nodes: map[string][]model.Node{
-					"node1": {&mockNode{id: "node2"}}},
+				Tree: &mockTree{root: &testutils.MockNode{I: "node1"}, nodes: map[string][]model.Node{
+					"node1": {&testutils.MockNode{I: "node2"}}},
 				},
 				Seen: map[string]struct{}{},
 			},
@@ -37,8 +39,14 @@ func TestTracker_Walk(t *testing.T) {
 				Budget: &Budget{
 					NodeBudget: 8,
 				},
-				Tree: &mockTree{root: &mockNode{id: "node1"}, nodes: map[string][]model.Node{
-					"node1": {&mockIterableNode{id: "node2", idx: -1, nodes: []model.Node{&mockNode{id: "node3"}}}}},
+				Tree: &mockTree{root: &testutils.MockNode{I: "node1"}, nodes: map[string][]model.Node{
+					"node1": {
+						&testutils.MockIterableNode{
+							I:     "node2",
+							Index: -1,
+							Nodes: []model.Node{&testutils.MockNode{I: "node3"}}},
+					},
+				},
 				},
 				Seen: map[string]struct{}{},
 			},
@@ -51,8 +59,8 @@ func TestTracker_Walk(t *testing.T) {
 				Budget: &Budget{
 					NodeBudget: 0,
 				},
-				Tree: &mockTree{root: &mockNode{id: "node1"}, nodes: map[string][]model.Node{
-					"node1": {&mockNode{id: "node2"}}},
+				Tree: &mockTree{root: &testutils.MockNode{I: "node1"}, nodes: map[string][]model.Node{
+					"node1": {&testutils.MockNode{I: "node2"}}},
 				},
 				Seen: map[string]struct{}{},
 			},
@@ -99,8 +107,8 @@ func TestTracker_WalkRecursively(t *testing.T) {
 				Budget: &Budget{
 					NodeBudget: 3,
 				},
-				Tree: &mockTree{root: &mockNode{id: "node1"}, nodes: map[string][]model.Node{
-					"node1": {&mockNode{id: "node2"}}},
+				Tree: &mockTree{root: &testutils.MockNode{I: "node1"}, nodes: map[string][]model.Node{
+					"node1": {&testutils.MockNode{I: "node2"}}},
 				},
 				Seen: map[string]struct{}{},
 			},
@@ -113,8 +121,14 @@ func TestTracker_WalkRecursively(t *testing.T) {
 				Budget: &Budget{
 					NodeBudget: 8,
 				},
-				Tree: &mockTree{root: &mockNode{id: "node1"}, nodes: map[string][]model.Node{
-					"node1": {&mockIterableNode{id: "node2", idx: -1, nodes: []model.Node{&mockNode{id: "node3"}}}}},
+				Tree: &mockTree{root: &testutils.MockNode{I: "node1"}, nodes: map[string][]model.Node{
+					"node1": {
+						&testutils.MockIterableNode{
+							I:     "node2",
+							Index: -1,
+							Nodes: []model.Node{&testutils.MockNode{I: "node3"}}},
+					},
+				},
 				},
 				Seen: map[string]struct{}{},
 			},
@@ -127,8 +141,8 @@ func TestTracker_WalkRecursively(t *testing.T) {
 				Budget: &Budget{
 					NodeBudget: 0,
 				},
-				Tree: &mockTree{root: &mockNode{id: "node1"}, nodes: map[string][]model.Node{
-					"node1": {&mockNode{id: "node2"}}},
+				Tree: &mockTree{root: &testutils.MockNode{I: "node1"}, nodes: map[string][]model.Node{
+					"node1": {&testutils.MockNode{I: "node2"}}},
 				},
 				Seen: map[string]struct{}{},
 			},
@@ -175,8 +189,8 @@ func TestTracker_WalkWithStop(t *testing.T) {
 				Budget: &Budget{
 					NodeBudget: 3,
 				},
-				Tree: &mockTree{root: &mockNode{id: "node1"}, nodes: map[string][]model.Node{
-					"node1": {&mockNode{id: "node2"}}},
+				Tree: &mockTree{root: &testutils.MockNode{I: "node1"}, nodes: map[string][]model.Node{
+					"node1": {&testutils.MockNode{I: "node2"}}},
 				},
 				Seen: map[string]struct{}{},
 			},
@@ -190,8 +204,14 @@ func TestTracker_WalkWithStop(t *testing.T) {
 				Budget: &Budget{
 					NodeBudget: 8,
 				},
-				Tree: &mockTree{root: &mockNode{id: "node1"}, nodes: map[string][]model.Node{
-					"node1": {&mockIterableNode{id: "node2", idx: -1, nodes: []model.Node{&mockNode{id: "node3"}}}}},
+				Tree: &mockTree{root: &testutils.MockNode{I: "node1"}, nodes: map[string][]model.Node{
+					"node1": {
+						&testutils.MockIterableNode{
+							I:     "node2",
+							Index: -1,
+							Nodes: []model.Node{&testutils.MockNode{I: "node3"}}},
+					},
+				},
 				},
 				Seen: map[string]struct{}{},
 			},
@@ -204,8 +224,8 @@ func TestTracker_WalkWithStop(t *testing.T) {
 				Budget: &Budget{
 					NodeBudget: 0,
 				},
-				Tree: &mockTree{root: &mockNode{id: "node1"}, nodes: map[string][]model.Node{
-					"node1": {&mockNode{id: "node2"}}},
+				Tree: &mockTree{root: &testutils.MockNode{I: "node1"}, nodes: map[string][]model.Node{
+					"node1": {&testutils.MockNode{I: "node2"}}},
 				},
 				Seen: map[string]struct{}{},
 			},
@@ -233,78 +253,6 @@ func TestTracker_WalkWithStop(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Mock node types
-type mockNode struct {
-	id         string
-	attributes model.Attributes
-}
-
-var _ model.Node = &mockNode{}
-
-func (m *mockNode) ID() string {
-	return m.id
-}
-
-func (m *mockNode) Address() string {
-	return "address"
-}
-
-func (m *mockNode) Attributes() model.Attributes {
-	return m.attributes
-}
-
-type mockIterableNode struct {
-	id         string
-	idx        int
-	attributes model.Attributes
-	nodes      []model.Node
-}
-
-var _ model.Node = &mockIterableNode{}
-
-func (m *mockIterableNode) ID() string {
-	return m.id
-}
-
-func (m *mockIterableNode) Address() string {
-	return "address"
-}
-
-func (m *mockIterableNode) Attributes() model.Attributes {
-	return m.attributes
-}
-
-func (m *mockIterableNode) Len() int {
-	if m.idx >= len(m.nodes) {
-		return 0
-	}
-	return len(m.nodes[m.idx+1:])
-}
-
-func (m *mockIterableNode) Next() bool {
-	if uint(m.idx)+1 < uint(len(m.nodes)) {
-		m.idx++
-		return true
-	}
-	m.idx = len(m.nodes)
-	return false
-}
-
-func (m *mockIterableNode) Node() model.Node {
-	if m.idx >= len(m.nodes) || m.idx < 0 {
-		return nil
-	}
-	return m.nodes[m.idx]
-}
-
-func (m *mockIterableNode) Reset() {
-	m.idx = -1
-}
-
-func (m *mockIterableNode) Error() error {
-	return nil
 }
 
 // Mock tree structure
