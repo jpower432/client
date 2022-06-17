@@ -2,7 +2,6 @@ package traversal
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/uor-framework/client/model"
 )
@@ -35,7 +34,7 @@ func Walk(t model.Tree, fn VisitFn) error {
 	tracker := NewTracker(nil, t)
 	root, err := t.Root()
 	if err != nil {
-		return fmt.Errorf("unable to find tree root node")
+		return err
 	}
 	return tracker.Walk(root, fn)
 }
@@ -47,7 +46,7 @@ func WalkBFS(t model.Tree, fn VisitFn) error {
 	tracker := NewTracker(nil, t)
 	root, err := t.Root()
 	if err != nil {
-		return fmt.Errorf("unable to find tree root node")
+		return err
 	}
 	return tracker.walkBFS(root, fn)
 }
