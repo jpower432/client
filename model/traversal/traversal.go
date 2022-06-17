@@ -118,7 +118,6 @@ func (t Tracker) walkIterative(n model.Node, fn VisitFn) error {
 
 // walkBFS uses a BFS algorithm to traverse the tree.
 func (t Tracker) walkBFS(n model.Node, fn VisitFn) error {
-
 	if n == nil {
 		return nil
 	}

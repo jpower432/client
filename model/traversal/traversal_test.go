@@ -53,6 +53,25 @@ func TestTracker_Walk(t *testing.T) {
 			expInvocations: 3,
 		},
 		{
+			name: "Success/DuplicateNodeID",
+			t: Tracker{
+				Budget: &Budget{
+					NodeBudget: 8,
+				},
+				Tree: &mockTree{root: &testutils.MockNode{I: "node1"}, nodes: map[string][]model.Node{
+					"node1": {
+						&testutils.MockIterableNode{
+							I:     "node2",
+							Index: -1,
+							Nodes: []model.Node{&testutils.MockNode{I: "node1"}}},
+					},
+				},
+				},
+				Seen: map[string]struct{}{},
+			},
+			expInvocations: 2,
+		},
+		{
 			name: "Failure/ExceededBudget",
 
 			t: Tracker{
@@ -72,7 +91,8 @@ func TestTracker_Walk(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			var actualInvocations int
-			visit := func(t Tracker, n model.Node) error {
+			visit := func(tr Tracker, n model.Node) error {
+				t.Log("Visiting " + n.ID())
 				actualInvocations++
 				return nil
 			}
@@ -136,12 +156,54 @@ func TestTracker_WalkBFS(t *testing.T) {
 			m:              &mockMatcher{"node2"},
 			expInvocations: 2,
 		},
+		{
+			name: "Success/DuplicateNodeID",
+			t: Tracker{
+				Budget: &Budget{
+					NodeBudget: 8,
+				},
+				Tree: &mockTree{root: &testutils.MockNode{I: "node1"}, nodes: map[string][]model.Node{
+					"node1": {
+						&testutils.MockIterableNode{
+							I:     "node2",
+							Index: -1,
+							Nodes: []model.Node{&testutils.MockNode{I: "node1"}}},
+					},
+				},
+				},
+				Seen: map[string]struct{}{},
+			},
+			m:              &mockMatcher{"node3"},
+			expInvocations: 2,
+		},
+		{
+			name: "Success/ShortestPath",
+			t: Tracker{
+				Budget: &Budget{
+					NodeBudget: 20,
+				},
+				Tree: &mockTree{root: &testutils.MockNode{I: "node1"}, nodes: map[string][]model.Node{
+					"node1": {
+						&testutils.MockNode{I: "node4"},
+					},
+					"node2": {
+						&testutils.MockNode{I: "node4"},
+					},
+					"node4": {},
+				},
+				},
+				Seen: map[string]struct{}{},
+			},
+			m:              &mockMatcher{"node4"},
+			expInvocations: 2,
+		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			var actualInvocations int
-			visit := func(t Tracker, n model.Node) error {
+			visit := func(tr Tracker, n model.Node) error {
+				t.Log("Visiting " + n.ID())
 				actualInvocations++
 				if c.m.Matches(n) {
 					return ErrSkip
