@@ -6,9 +6,11 @@ import (
 	"github.com/uor-framework/client/model"
 )
 
-// Tracker contains information needed for tree traversal.
+// Tracker contains information stored during tree traversal
+// such as the tree structure to guide traversal direction, budgeting information,
+// and visited nodes.
 type Tracker struct {
-	// Tree defines node relationships
+	// Tree defines node relationships.
 	Tree model.Tree
 	// Budget tracks traversal maximums such as maximum visited nodes.
 	Budget *Budget
@@ -16,6 +18,7 @@ type Tracker struct {
 	Seen map[string]struct{}
 }
 
+// NewTracker returns a new Tracker instance.
 func NewTracker(budget *Budget, t model.Tree) Tracker {
 	return Tracker{
 		Tree:   t,
@@ -24,12 +27,12 @@ func NewTracker(budget *Budget, t model.Tree) Tracker {
 	}
 }
 
-// VisitFn is a read-only visitor.
-type VisitFn func(Tracker, model.Node) error
+// VisitFunc is a read-only visitor for model.Node.
+type VisitFunc func(Tracker, model.Node) error
 
 // Walk is similar to filepath.Walk in that it allows tree traversal
 // and will visit nodes and allow node selection.
-func Walk(t model.Tree, fn VisitFn) error {
+func Walk(t model.Tree, fn VisitFunc) error {
 	// TODO(jpower432): Set a sane default here
 	tracker := NewTracker(nil, t)
 	root, err := t.Root()
@@ -41,34 +44,37 @@ func Walk(t model.Tree, fn VisitFn) error {
 
 // WalkBFS traverses all nodes in the tree
 // using breadth first search.
-func WalkBFS(t model.Tree, fn VisitFn) error {
+func WalkBFS(t model.Tree, fn VisitFunc) error {
 	// TODO(jpower432): Set a sane default here
 	tracker := NewTracker(nil, t)
 	root, err := t.Root()
 	if err != nil {
 		return err
 	}
-	return tracker.walkBFS(root, fn)
+	return tracker.WalkBFS(root, fn)
 }
 
-// Walk using iterative DFS to walk the traverse as many nodes
-// as possible until the node budget is it or the whole tree
-// is traversed.
-func (t Tracker) Walk(n model.Node, fn VisitFn) error {
+// Walk performs tree traversal using an iterative DFS algorithm to
+// visit as many nodes as possible until the node budget is hit
+// or the whole tree is traversed.
+func (t Tracker) Walk(n model.Node, fn VisitFunc) error {
 	return t.walkIterative(n, func(t Tracker, n model.Node) error {
 		return fn(t, n)
 	})
 }
 
-// WalkBFS traverses all nodes in the tree using a BFS algorithm.
-func (t Tracker) WalkBFS(n model.Node, fn VisitFn) error {
+// WalkBFS performs tree traversal using a BFS algorithm to
+// visit as many nodes as possible until the node budget is hit
+// or the whole tree is traversed.
+func (t Tracker) WalkBFS(n model.Node, fn VisitFunc) error {
 	return t.walkBFS(n, func(t Tracker, n model.Node) error {
 		return fn(t, n)
 	})
 }
 
-// walkIterative uses an iterative DFS algorithm to traverse the tree.
-func (t Tracker) walkIterative(n model.Node, fn VisitFn) error {
+// walkIterative uses an iterative DFS algorithm to traverse the tree
+// of model.Node types.
+func (t Tracker) walkIterative(n model.Node, fn VisitFunc) error {
 	if n == nil {
 		return nil
 	}
@@ -108,6 +114,9 @@ func (t Tracker) walkIterative(n model.Node, fn VisitFn) error {
 		itr, ok := n.(model.Iterator)
 		if ok {
 			for itr.Next() {
+				if err := itr.Error(); err != nil {
+					return err
+				}
 				stack = append(stack, itr.Node())
 			}
 		}
@@ -115,8 +124,9 @@ func (t Tracker) walkIterative(n model.Node, fn VisitFn) error {
 	return nil
 }
 
-// walkBFS uses a BFS algorithm to traverse the tree.
-func (t Tracker) walkBFS(n model.Node, fn VisitFn) error {
+// walkBFS uses a BFS algorithm to traverse the tree of model.Node
+// types.
+func (t Tracker) walkBFS(n model.Node, fn VisitFunc) error {
 	if n == nil {
 		return nil
 	}
@@ -153,6 +163,9 @@ func (t Tracker) walkBFS(n model.Node, fn VisitFn) error {
 		itr, ok := n.(model.Iterator)
 		if ok {
 			for itr.Next() {
+				if err := itr.Error(); err != nil {
+					return err
+				}
 				queue = append(queue, itr.Node())
 			}
 		}
