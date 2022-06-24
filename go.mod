@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	github.com/buger/jsonparser v1.1.1
+	github.com/containerd/containerd v1.6.1
 	github.com/gabriel-vasile/mimetype v1.4.0
 	github.com/google/go-containerregistry v0.5.1
 	github.com/opencontainers/go-digest v1.0.0
@@ -25,7 +26,6 @@ require (
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
-	github.com/containerd/containerd v1.6.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/docker/cli v20.10.11+incompatible // indirect
 	github.com/docker/distribution v2.8.1+incompatible // indirect
