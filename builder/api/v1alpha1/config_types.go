@@ -5,9 +5,10 @@ const DataSetConfigurationKind = "DataSetConfiguration"
 
 // DataSetConfiguration configures a dataset
 type DataSetConfiguration struct {
-	Kind       string `mapstructure:"kind,omitempty"`
-	APIVersion string `mapstructure:"apiVersion,omitempty"`
-	Files      []File `mapstructure:"files,omitempty"`
+	Kind              string   `mapstructure:"kind,omitempty"`
+	APIVersion        string   `mapstructure:"apiVersion,omitempty"`
+	Files             []File   `mapstructure:"files,omitempty"`
+	LinkedCollections []string `mapstructure:"linkedCollections,omitempty"`
 }
 
 // File associates attributes with file names

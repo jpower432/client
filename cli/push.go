@@ -20,7 +20,6 @@ type PushOptions struct {
 	Insecure    bool
 	PlainHTTP   bool
 	Configs     []string
-	DSConfig    string
 }
 
 var clientPushExamples = templates.Examples(
@@ -74,7 +73,7 @@ func (o *PushOptions) Run(ctx context.Context) error {
 		orasclient.WithAuthConfigs(o.Configs),
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("error configuring client: %v", err)
 	}
 
 	cache, err := layout.New(o.cacheDir)
@@ -84,7 +83,7 @@ func (o *PushOptions) Run(ctx context.Context) error {
 
 	desc, err := client.Push(ctx, cache, o.Destination)
 	if err != nil {
-		return fmt.Errorf("error publishing content to %s: %v", o.Destination, err)
+		return err
 	}
 
 	o.Logger.Infof("Artifact %s published to %s\n", desc.Digest, o.Destination)
