@@ -14,6 +14,7 @@ import (
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/uor-framework/client/attributes"
+	"github.com/uor-framework/client/content/layout"
 	"github.com/uor-framework/client/model"
 	"github.com/uor-framework/client/model/nodes/basic"
 	"github.com/uor-framework/client/model/nodes/collection"
@@ -205,22 +206,30 @@ func (o *PullOptions) pullCollection(ctx context.Context, output string) (ocispe
 		layerDescs = append(layerDescs, desc)
 		return nil
 	}
+
+	cache, err := layout.New(o.cacheDir)
+	if err != nil {
+		return ocispec.Descriptor{}, nil, err
+	}
 	client, err := orasclient.NewClient(
 		orasclient.SkipTLSVerify(o.Insecure),
 		orasclient.WithPlainHTTP(o.PlainHTTP),
 		orasclient.WithAuthConfigs(o.Configs),
 		orasclient.WithOutputDir(output),
 		orasclient.WithPostCopy(layerFn),
+		orasclient.WithCache(cache),
 	)
 	if err != nil {
 		return ocispec.Descriptor{}, nil, fmt.Errorf("error configuring client: %v", err)
 	}
+	defer client.Destroy()
 
 	desc, err := client.Execute(ctx, o.Source, registryclient.TypePull)
 	if err != nil {
 		return ocispec.Descriptor{}, nil, err
 	}
-	return desc, layerDescs, client.Destroy()
+
+	return desc, layerDescs, cache.Tag(ctx, desc, o.Source)
 }
 
 // mkTempDir will make a temporary dir and return the name
