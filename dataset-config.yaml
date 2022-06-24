@@ -1,16 +1,17 @@
 kind: DataSetConfiguration
 apiVersion: client.uor-framework.io/v1alpha1
+linkedCollections:
+  - 100.115.92.198:5001/models:latest
 files:
-  - file: "*.jpg"
+  - file: "*.pkl"
     attributes:
-      animal: fish
-      habitat: ocean
+      type: model
+  - file: model1.pkl
+    attributes:
       size: small
-      color: blue
-  - file: level1/file.txt
+  - file: model2.pkl
     attributes:
-      genre: "science fiction"
-      bool: true
-  - file: fish.jpg"
+      size: medium
+  - file: model3.pkl
     attributes:
-      custom1: customval
+      size: large

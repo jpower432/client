@@ -4,17 +4,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
 
+	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-querystring/query"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/spf13/cobra"
 	"k8s.io/kubectl/pkg/util/templates"
 
 	"github.com/uor-framework/client/builder/api/v1alpha1"
 	load "github.com/uor-framework/client/builder/config"
+
 	"github.com/uor-framework/client/content/layout"
+	"github.com/uor-framework/client/links"
 	"github.com/uor-framework/client/registryclient"
 	"github.com/uor-framework/client/registryclient/orasclient"
 	"github.com/uor-framework/client/util/workspace"
@@ -103,6 +108,21 @@ func (o *PushOptions) Run(ctx context.Context) error {
 	}
 	defer client.Destroy()
 
+	// Load the config earlier in order to seed the directory with linked collection objects
+	var config v1alpha1.DataSetConfiguration
+	if len(o.DSConfig) > 0 {
+		config, err = load.ReadConfig(o.DSConfig)
+		if err != nil {
+			return err
+		}
+	}
+	// AddLinks adds additional files to the pushing directory, so it must
+	// happen before the walk
+	links, err := links.AddLinks(config, o.RootDir)
+	if err != nil {
+		return err
+	}
+
 	var files []string
 	err = space.Walk(func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -119,13 +139,6 @@ func (o *PushOptions) Run(ctx context.Context) error {
 	})
 	if err != nil {
 		return err
-	}
-	var config v1alpha1.DataSetConfiguration
-	if len(o.DSConfig) > 0 {
-		config, err = load.ReadConfig(o.DSConfig)
-		if err != nil {
-			return err
-		}
 	}
 
 	// To allow the files to be loaded relative to the render
@@ -148,9 +161,9 @@ func (o *PushOptions) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
+	var linkedSchema []string
 	// Add the attributes from the config to their respective blocks
-	descs, err = AddDescriptors(descs, config)
+	descs, linkedSchema, err = AddDescriptors(descs, config, links, o.Insecure)
 	if err != nil {
 		return err
 	}
@@ -159,8 +172,13 @@ func (o *PushOptions) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	// Write the root collection attributes
+	annotations, err := AddAnnotations("schema", linkedSchema)
+	if err != nil {
+		return err
+	}
 
-	if _, err := client.GenerateManifest(ctx, o.Destination, configDesc, nil, descs...); err != nil {
+	if _, err := client.GenerateManifest(ctx, o.Destination, configDesc, annotations, descs...); err != nil {
 		return err
 	}
 
@@ -175,35 +193,80 @@ func (o *PushOptions) Run(ctx context.Context) error {
 }
 
 // AddDescriptors adds the attributes of each file listed in the config
-// to the annotations of its respective descriptor.
-func AddDescriptors(d []ocispec.Descriptor, c v1alpha1.DataSetConfiguration) ([]ocispec.Descriptor, error) {
+// to the annotations of its respective descriptor. Schema declarations
+// are URL encoded so that a slice/map/struct can be written as a string
+func AddDescriptors(d []v1.Descriptor, c v1alpha1.DataSetConfiguration, l map[string]string, i bool) ([]v1.Descriptor, []string, error) {
 	// For each descriptor
+	var linkedSchema []string
 	for i1, desc := range d {
 		// Get the filename of the block
 		filename := desc.Annotations[ocispec.AnnotationTitle]
 		// For each file in the config
-		for i2, file := range c.Files {
-			// If the config has a grouping declared, make a valid regex.
-			if strings.Contains(file.File, "*") && !strings.Contains(file.File, ".*") {
-				file.File = strings.Replace(file.File, "*", ".*", -1)
-			} else {
-				file.File = strings.Replace(file.File, file.File, "^"+file.File+"$", -1)
-			}
-			namesearch, err := regexp.Compile(file.File)
+		if _, ok := l[filename]; ok {
+			var err error
+			result, err := links.FetchSchema(l[filename], i)
 			if err != nil {
-				return []ocispec.Descriptor{}, err
+				return nil, nil, err
 			}
-			// Find the matching descriptor
-			if namesearch.Match([]byte(filename)) {
-				// Get the k/v pairs from the config and add them to the block's annotations.
-				for k, v := range c.Files[i2].Attributes {
-					d[i1].Annotations[k] = v
+			schema := struct {
+				Schema []string
+			}{
+				Schema: result,
+			}
+			// URL encode the slice
+			v, err := query.Values(schema)
+			if err != nil {
+				return nil, nil, err
+			}
+			eSchema := v.Encode()
+			d[i1].Annotations["uor.link.schemas"] = eSchema
+			linkedSchema = append(linkedSchema, result...)
+
+		} else {
+			for i2, file := range c.Files {
+				// If the config has a grouping declared, make a valid regex.
+				if strings.Contains(file.File, "*") && !strings.Contains(file.File, ".*") {
+					file.File = strings.Replace(file.File, "*", ".*", -1)
+				} else {
+					file.File = strings.Replace(file.File, file.File, "^"+file.File+"$", -1)
 				}
-			} else {
-				// If the block does not have a corresponding config element, skip it.
-				continue
+				namesearch, err := regexp.Compile(file.File)
+				if err != nil {
+					return []v1.Descriptor{}, nil, err
+				}
+				// Find the matching descriptor
+				if namesearch.Match([]byte(filename)) {
+					// Get the k/v pairs from the config and add them to the block's annotations.
+					for k, v := range c.Files[i2].Attributes {
+						d[i1].Annotations[k] = v
+					}
+				} else {
+					// If the block does not have a corresponding config element, skip it.
+					continue
+				}
 			}
 		}
 	}
-	return d, nil
+	return d, linkedSchema, nil
+}
+
+// AddAnnotations add's annotations to the root collection manifest's annotations
+func AddAnnotations(s string, l []string) (map[string]string, error) {
+
+	annotations := make(map[string]string)
+	schema := struct {
+		Schema []string
+	}{
+		Schema: l,
+	}
+	v, err := query.Values(schema)
+	if err != nil {
+		return nil, err
+	}
+	// Annotations are multi-element and thus are encoded as a single string.
+	annotations["uor.schema.linked"] = v.Encode()
+	annotations["uor.schema"] = url.QueryEscape(s)
+
+	return annotations, err
+
 }
