@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
-	"github.com/google/go-querystring/query"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/spf13/cobra"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -17,8 +17,9 @@ import (
 	"github.com/uor-framework/client/builder/api/v1alpha1"
 	load "github.com/uor-framework/client/builder/config"
 	"github.com/uor-framework/client/content/layout"
-	"github.com/uor-framework/client/links"
+	"github.com/uor-framework/client/registryclient"
 	"github.com/uor-framework/client/registryclient/orasclient"
+	"github.com/uor-framework/client/schema"
 	"github.com/uor-framework/client/util/workspace"
 )
 
@@ -30,6 +31,8 @@ type BuildOptions struct {
 	DSConfig    string
 	Destination string
 	Insecure    bool
+	PlainHTTP   bool
+	Configs     []string
 }
 
 var clientBuildExamples = templates.Examples(
@@ -58,7 +61,9 @@ func NewBuildCmd(rootOpts *RootOptions) *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&o.DSConfig, "dsconfig", "", o.DSConfig, "DataSet config path")
+	cmd.Flags().StringArrayVarP(&o.Configs, "configs", "c", o.Configs, "auth config paths")
 	cmd.Flags().BoolVarP(&o.Insecure, "insecure", "", o.Insecure, "allow connections to SSL registry without certs")
+	cmd.Flags().BoolVarP(&o.PlainHTTP, "plain-http", "", o.PlainHTTP, "use plain http and not https")
 
 	return cmd
 }
@@ -86,12 +91,16 @@ func (o *BuildOptions) Run(ctx context.Context) error {
 		return err
 	}
 
-	cache, err := layout.New(o.cacheDir)
+	cache, err := layout.New(ctx, o.cacheDir)
 	if err != nil {
 		return err
 	}
 
-	client, err := orasclient.NewClient()
+	client, err := orasclient.NewClient(
+		orasclient.SkipTLSVerify(o.Insecure),
+		orasclient.WithAuthConfigs(o.Configs),
+		orasclient.WithPlainHTTP(o.PlainHTTP),
+	)
 	if err != nil {
 		return fmt.Errorf("error configuring client: %v", err)
 	}
@@ -122,9 +131,9 @@ func (o *BuildOptions) Run(ctx context.Context) error {
 		}
 	}
 
-	// AddLinks adds additional files to the pushing directory, so it must
+	// Add links adds additional files to the pushing directory, so it must
 	// happen before the walk
-	links, err := links.AddLinks(config, o.RootDir)
+	links, err := addLinks(config, o.RootDir)
 	if err != nil {
 		return err
 	}
@@ -152,7 +161,7 @@ func (o *BuildOptions) Run(ctx context.Context) error {
 
 	var linkedSchema []string
 	// Add the attributes from the config to their respective blocks
-	descs, linkedSchema, err = AddDescriptors(descs, config, links, o.Insecure)
+	descs, linkedSchema, err = updateDescriptors(ctx, descs, config, links, client)
 	if err != nil {
 		return err
 	}
@@ -163,12 +172,13 @@ func (o *BuildOptions) Run(ctx context.Context) error {
 	}
 
 	// Write the root collection attributes
-	annotations, err := AddAnnotations("schema", linkedSchema)
-	if err != nil {
-		return err
+	manifestAnnotations := map[string]string{}
+	manifestAnnotations[schema.AnnotationSchemaName] = "test"
+	if len(linkedSchema) > 0 {
+		manifestAnnotations[schema.AnnotationLinks] = strings.Join(linkedSchema, ",")
 	}
 
-	_, err = client.AddManifest(ctx, o.Destination, configDesc, annotations, descs...)
+	_, err = client.AddManifest(ctx, o.Destination, configDesc, manifestAnnotations, descs...)
 	if err != nil {
 		return err
 	}
@@ -183,38 +193,29 @@ func (o *BuildOptions) Run(ctx context.Context) error {
 	return client.Destroy()
 }
 
-// AddDescriptors adds the attributes of each file listed in the config
-// to the annotations of its respective descriptor. Schema declarations
-// are URL encoded so that a slice/map/struct can be written as a string
-func AddDescriptors(d []ocispec.Descriptor, c v1alpha1.DataSetConfiguration, l map[string]string, i bool) ([]ocispec.Descriptor, []string, error) {
+// updateDescriptors adds the attributes of each file listed in the config
+// to the annotations of its respective descriptor.
+// FIXME(jpower432): Simplify the logic in this method.
+func updateDescriptors(ctx context.Context, descs []ocispec.Descriptor, cfg v1alpha1.DataSetConfiguration, links map[string]string, client registryclient.Client) ([]ocispec.Descriptor, []string, error) {
 	// For each descriptor
 	var linkedSchema []string
-	for i1, desc := range d {
+	for _, desc := range descs {
 		// Get the filename of the block
 		filename := desc.Annotations[ocispec.AnnotationTitle]
 		// For each file in the config
-		if _, ok := l[filename]; ok {
+		if l, ok := links[filename]; ok {
 			var err error
-			result, err := links.FetchSchema(l[filename], i)
+			sch, linkedSchemas, err := schema.Fetch(ctx, l, client)
 			if err != nil {
 				return nil, nil, err
 			}
-			schema := struct {
-				Schema []string
-			}{
-				Schema: result,
-			}
-			// URL encode the slice
-			v, err := query.Values(schema)
-			if err != nil {
-				return nil, nil, err
-			}
-			eSchema := v.Encode()
-			d[i1].Annotations["uor.link.schemas"] = eSchema
-			linkedSchema = append(linkedSchema, result...)
+			joinedLinks := strings.Join(linkedSchemas, ",")
+			desc.Annotations[schema.AnnotationLinks] = joinedLinks
+			linkedSchema = append(linkedSchema, sch)
+			linkedSchema = append(linkedSchema, linkedSchemas...)
 
 		} else {
-			for i2, file := range c.Files {
+			for i2, file := range cfg.Files {
 				// If the config has a grouping declared, make a valid regex.
 				if strings.Contains(file.File, "*") && !strings.Contains(file.File, ".*") {
 					file.File = strings.Replace(file.File, "*", ".*", -1)
@@ -228,8 +229,8 @@ func AddDescriptors(d []ocispec.Descriptor, c v1alpha1.DataSetConfiguration, l m
 				// Find the matching descriptor
 				if namesearch.Match([]byte(filename)) {
 					// Get the k/v pairs from the config and add them to the block's annotations.
-					for k, v := range c.Files[i2].Attributes {
-						d[i1].Annotations[k] = v
+					for k, v := range cfg.Files[i2].Attributes {
+						desc.Annotations[k] = v
 					}
 				} else {
 					// If the block does not have a corresponding config element, skip it.
@@ -238,26 +239,29 @@ func AddDescriptors(d []ocispec.Descriptor, c v1alpha1.DataSetConfiguration, l m
 			}
 		}
 	}
-	return d, linkedSchema, nil
+	return descs, linkedSchema, nil
 }
 
-// AddAnnotations add's annotations to the root collection manifest's annotations
-func AddAnnotations(s string, l []string) (map[string]string, error) {
+// addLinks creates links and returns a map of links and an error.
+// This will result in the creation of a descriptor that will be used
+// to denoted linked schemas in the collection.
+func addLinks(d v1alpha1.DataSetConfiguration, rootPath string) (map[string]string, error) {
+	// Create a link file with the name as the digest of the content
+	links := make(map[string]string)
+	for _, link := range d.LinkedCollections {
+		dgst := digest.FromString(link)
+		path := filepath.Join(rootPath, dgst.String())
+		f, err := os.Create(path)
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
 
-	annotations := make(map[string]string)
-	schema := struct {
-		Schema []string
-	}{
-		Schema: l,
+		_, err = f.WriteString(link)
+		if err != nil {
+			return nil, err
+		}
+		links[dgst.String()] = link
 	}
-	v, err := query.Values(schema)
-	if err != nil {
-		return nil, err
-	}
-	// Annotations are multi-element and thus are encoded as a single string.
-	annotations["uor.schema.linked"] = v.Encode()
-	annotations["uor.schema"] = url.QueryEscape(s)
-
-	return annotations, err
-
+	return links, nil
 }

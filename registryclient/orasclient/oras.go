@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"path/filepath"
 	"sort"
@@ -101,12 +102,18 @@ func (c *orasClient) Save(ctx context.Context, ref string, store content.Store) 
 
 // Pull performs a copy of OCI artifacts to a local location from a remote location.
 func (c *orasClient) Pull(ctx context.Context, ref string, store content.Store) (ocispec.Descriptor, error) {
+	var from oras.Target
 	repo, err := c.setupRepo(ref)
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("could not create registry target: %w", err)
 	}
+	from = repo
 
-	return oras.Copy(ctx, repo, ref, store, ref, c.copyOpts)
+	if c.cache != nil {
+		from = cache.New(repo, c.cache)
+	}
+
+	return oras.Copy(ctx, from, ref, store, ref, c.copyOpts)
 }
 
 // Push performs a copy of OCI artifacts to a remote location.
@@ -117,6 +124,15 @@ func (c *orasClient) Push(ctx context.Context, store content.Store, ref string) 
 	}
 
 	return oras.Copy(ctx, store, ref, repo, ref, c.copyOpts)
+}
+
+// GetManifest returns the manifest the reference resolves to.
+func (c *orasClient) GetManifest(ctx context.Context, reference string) (ocispec.Descriptor, io.ReadCloser, error) {
+	repo, err := c.setupRepo(reference)
+	if err != nil {
+		return ocispec.Descriptor{}, nil, fmt.Errorf("could not create registry target: %w", err)
+	}
+	return repo.FetchReference(ctx, reference)
 }
 
 // Store returns the source storage being used to stored
@@ -140,7 +156,7 @@ func (c *orasClient) checkFileStore() error {
 }
 
 // setupRepo configures the client to access the remote repository.
-func (c *orasClient) setupRepo(ref string) (oras.Target, error) {
+func (c *orasClient) setupRepo(ref string) (*remote.Repository, error) {
 	repo, err := remote.NewRepository(ref)
 	if err != nil {
 		return nil, fmt.Errorf("could not create registry target: %w", err)
@@ -151,11 +167,6 @@ func (c *orasClient) setupRepo(ref string) (oras.Target, error) {
 		return nil, err
 	}
 	repo.Client = authC
-
-	if c.cache != nil {
-		return cache.New(repo, c.cache), nil
-	}
-
 	return repo, nil
 }
 

@@ -10,7 +10,10 @@ import (
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/registry"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/require"
+	"github.com/uor-framework/client/model"
+	"oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/content/file"
 	"oras.land/oras-go/v2/content/memory"
 )
@@ -83,7 +86,8 @@ func TestPushPull(t *testing.T) {
 	})
 
 	t.Run("Success/PushOneImage", func(t *testing.T) {
-		cache := memory.New()
+		cache := &mockCache{memory.New()}
+
 		expDigest := "sha256:98f36e12e9dbacfbb10b9d1f32a46641eb42de588e54cfd7e8627d950ae8140a"
 		c, err := NewClient(WithPlainHTTP(true), WithCache(cache))
 		require.NoError(t, err)
@@ -115,7 +119,7 @@ func TestPushPull(t *testing.T) {
 	})
 
 	t.Run("Success/PullWithCache", func(t *testing.T) {
-		cache := memory.New()
+		cache := &mockCache{memory.New()}
 
 		expDigest := "sha256:98f36e12e9dbacfbb10b9d1f32a46641eb42de588e54cfd7e8627d950ae8140a"
 		c, err := NewClient(WithPlainHTTP(true), WithCache(cache))
@@ -168,4 +172,14 @@ func TestPushPull(t *testing.T) {
 		require.EqualError(t, err, fmt.Sprintf("%s: not found", notExistTag))
 		require.NoError(t, c.Destroy())
 	})
+}
+
+var _ content.Storage = &mockCache{}
+
+type mockCache struct {
+	*memory.Store
+}
+
+func (m *mockCache) ResolveByAttribute(_ context.Context, _ string, _ model.Matcher) ([]ocispec.Descriptor, error) {
+	return nil, nil
 }

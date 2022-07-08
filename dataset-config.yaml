@@ -1,7 +1,7 @@
 kind: DataSetConfiguration
 apiVersion: client.uor-framework.io/v1alpha1
 linkedCollections:
-  - 100.115.92.198:5001/models:latest
+  - localhost:5001/models:latest
 files:
   - file: "*.pkl"
     attributes:

@@ -76,14 +76,14 @@ func (o *PushOptions) Run(ctx context.Context) error {
 		return fmt.Errorf("error configuring client: %v", err)
 	}
 
-	cache, err := layout.New(o.cacheDir)
+	cache, err := layout.New(ctx, o.cacheDir)
 	if err != nil {
 		return err
 	}
 
 	desc, err := client.Push(ctx, cache, o.Destination)
 	if err != nil {
-		return err
+		return fmt.Errorf("error publishing content to locahost:5001/client-flat-test:latest: %v", err)
 	}
 
 	o.Logger.Infof("Artifact %s published to %s\n", desc.Digest, o.Destination)
