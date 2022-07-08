@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"path/filepath"
 	"sort"
@@ -90,12 +91,25 @@ func (c *orasClient) GenerateManifest(ctx context.Context, ref string, configDes
 	return manifestDesc, c.fileStore.Tag(ctx, manifestDesc, ref)
 }
 
+// GetManifest returns the manifest the reference resolves to.
+func (c *orasClient) GetManifest(ctx context.Context, reference string) (ocispec.Descriptor, io.ReadCloser, error) {
+	repo, err := c.setupRepo(reference)
+	if err != nil {
+		return ocispec.Descriptor{}, nil, fmt.Errorf("could not create registry target: %w", err)
+	}
+	return repo.FetchReference(ctx, reference)
+}
+
 // Execute performs the copy of OCI artifacts.
 func (c *orasClient) Execute(ctx context.Context, ref string, typ registryclient.ActionType) (ocispec.Descriptor, error) {
-	var to, from oras.Target
+	var to, from, repo oras.Target
 	repo, err := c.setupRepo(ref)
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("could not create registry target: %w", err)
+	}
+
+	if c.cache != nil {
+		repo = cache.New(repo, c.cache)
 	}
 
 	switch typ {
@@ -130,7 +144,7 @@ func (c *orasClient) checkFileStore() error {
 }
 
 // setupRepo configures the client to access the remote repository.
-func (c *orasClient) setupRepo(ref string) (oras.Target, error) {
+func (c *orasClient) setupRepo(ref string) (*remote.Repository, error) {
 	repo, err := remote.NewRepository(ref)
 	if err != nil {
 		return nil, fmt.Errorf("could not create registry target: %w", err)
@@ -142,9 +156,6 @@ func (c *orasClient) setupRepo(ref string) (oras.Target, error) {
 	}
 	repo.Client = authC
 
-	if c.cache != nil {
-		return cache.New(repo, c.cache), nil
-	}
 	return repo, nil
 }
 

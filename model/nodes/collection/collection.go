@@ -9,9 +9,10 @@ import (
 )
 
 var (
-	_ model.Node     = &Collection{}
-	_ model.Rooted   = &Collection{}
-	_ model.Iterator = &Collection{}
+	_ model.Node          = &Collection{}
+	_ model.DirectedGraph = &Collection{}
+	_ model.Rooted        = &Collection{}
+	_ model.Iterator      = &Collection{}
 )
 
 // Collection is implementation of a model Node represent one OCI artifact.

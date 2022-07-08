@@ -2,6 +2,7 @@ package registryclient
 
 import (
 	"context"
+	"io"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -18,6 +19,8 @@ type Client interface {
 	// GenerateManifest creates and stores a manifest for an image reference.
 	// This is generated from the config descriptor and artifact descriptors.
 	GenerateManifest(context.Context, string, ocispec.Descriptor, map[string]string, ...ocispec.Descriptor) (ocispec.Descriptor, error)
+	// GetManifest retrieves the root manifest for a reference.
+	GetManifest(context.Context, string) (ocispec.Descriptor, io.ReadCloser, error)
 	// Execute performs the copy of OCI artifacts.
 	// The image reference and copy action are expected as inputs.
 	Execute(context.Context, string, ActionType) (ocispec.Descriptor, error)

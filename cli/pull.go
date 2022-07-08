@@ -207,7 +207,7 @@ func (o *PullOptions) pullCollection(ctx context.Context, output string) (ocispe
 		return nil
 	}
 
-	cache, err := layout.New(o.cacheDir)
+	cache, err := layout.New(ctx, o.cacheDir)
 	if err != nil {
 		return ocispec.Descriptor{}, nil, err
 	}
