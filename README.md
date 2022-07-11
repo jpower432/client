@@ -45,10 +45,21 @@ client version
 ### User Workflow
 
 1. Create a directory with artifacts to publish to a registry as an OCI artifact. If the files reference each other, the client will replace the in-content linked files with the content address.
-   > WARNING: Currently, only JSON is supported for link replacement.
-2. Use the `client push` command to publish the workspace to a registry as an OCI artifact.
-3. Use the `client pull` command to pull the artifact back to a local workspace.
+> WARNING: Currently, only JSON is supported for link replacement.
+2. Use the `client build` command to build the workspace as an OCI artifact in build cache `(homedir/.uor)`.
+3. Use the `client push` command to publish to a registry as an OCI artifact.
+4. Use the `client pull` command to pull the artifact back to a local workspace.
 
+### Build workspace into an artifact
+
+```
+client build my-workspace localhost:5000/myartifacts:latest
+```
+
+```
+# Optionally with dsconfig
+client build my-workspace localhost:5000/myartifacts:latest --dsconfig dataset-config.yaml
+```
 ### Push workspace to a registry location
 
 ```
@@ -58,13 +69,13 @@ client push my-workspace localhost:5000/myartifacts:latest
 ### Pull UOR collection to a location
 
 ```
-client pull localhost:5000/myartifacts:latest my-output-directory
+client pull localhost:5000/myartifacts:latest -o my-output-directory
 ```
 
 ### Pull subsets of a UOR collection to a location by attribute
 
 ```
-client pull localhost:5000/myartifacts:latest my-output-directory --attributes key=value
+client pull localhost:5000/myartifacts:latest -o my-output-directory --attributes key=value
 ```
 
 ## Getting Started
@@ -107,20 +118,23 @@ files:
 
 ```
 
-5. Run the UOR client push command referencing the dataset config, the content directory, and the destination registry location.
-
+5. Run the UOR client build command referencing the dataset config, the content directory, and the destination registry location.
+   ```
+client build my-workspace localhost:5000/test/dataset:latest --dsconfig dataset-config.yaml 
 ```
-client push my-workspace localhost:5000/test/dataset:latest --dsconfig dataset-config.yaml 
+6. Run the UOR push command to publish
+```
+client push localhost:5000/test/dataset:latest
 ```
 
-6. Optionally inspect the OCI manifest of the dataset:
+7. Optionally inspect the OCI manifest of the dataset:
   `curl -H "Accept: application/vnd.oci.image.manifest.v1+json" <servername>:<port>/v2/<namespace>/<repo>/manifests/<digest or tag>`
 
-7. Optionally pull the collection back down to verify the content with `client pull`:
-  `client pull localhost:5000/test/dataset:latest my-output-directory`
+8. Optionally pull the collection back down to verify the content with `client pull`:
+  `client pull localhost:5000/test/dataset:latest -o my-output-directory`
 
-8. Optionally pull a subset of the collection back down to verify the content with `client pull`:
-  `client pull localhost:5000/test/dataset:latest my-output-directory --attributes "fiction=true"`
+9. Optionally pull a subset of the collection back down to verify the content with `client pull`:
+  `client pull localhost:5000/test/dataset:latest -o my-output-directory --attributes "fiction=true"`
 
 # Glossary
 
