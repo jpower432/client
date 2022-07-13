@@ -31,11 +31,6 @@ const indexFile = "index.json"
 
 // Layout implements the storage interface by wrapping the oras
 // content.Storage.
-// TODO(jpower432): add graph structure implementation once
-// imported collection work is completed to effectively
-// manage the index.json. Similar to https://github.com/oras-project/oras-go/tree/main/internal/graph
-// but the edge calculations will be UOR specific because descriptor are not only linked in the OCI DAG
-// structure, but there are relationships between the each of those graph based on annotations.
 type Layout struct {
 	internal orascontent.Storage
 	resolver *resolver.Memory
