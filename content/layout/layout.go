@@ -137,7 +137,8 @@ func (l *Layout) SaveIndex() error {
 	return ioutil.WriteFile(path, indexJSON, 0640)
 }
 
-//
+// loadIndex loads all information from the index.json
+// into the resolver and graph.
 func (l *Layout) loadIndex() error {
 	path := filepath.Join(l.rootPath, indexFile)
 	indexFile, err := os.Open(path)
@@ -169,6 +170,8 @@ func (l *Layout) loadIndex() error {
 	return nil
 }
 
+// validateOCILayoutFile ensure the 'oci-layout' file exists in the
+// root directory and contains a valid version.
 func (l *Layout) validateOCILayoutFile() error {
 	layoutFilePath := filepath.Join(l.rootPath, ocispec.ImageLayoutFile)
 	layoutFile, err := os.Open(layoutFilePath)
