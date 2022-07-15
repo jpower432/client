@@ -1,4 +1,4 @@
-package basic
+package descriptor
 
 import (
 	"github.com/uor-framework/client/attributes"

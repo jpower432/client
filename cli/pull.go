@@ -30,6 +30,7 @@ type PullOptions struct {
 	Source     string
 	Output     string
 	Insecure   bool
+	PullAll    bool
 	PlainHTTP  bool
 	Configs    []string
 	Attributes map[string]string
@@ -62,10 +63,11 @@ func NewPullCmd(rootOpts *RootOptions) *cobra.Command {
 
 	cmd.Flags().StringArrayVarP(&o.Configs, "auth-configs", "c", o.Configs, "auth config paths")
 	cmd.Flags().BoolVarP(&o.Insecure, "insecure", "", o.Insecure, "allow connections to SSL registry without certs")
-	cmd.Flags().BoolVarP(&o.PlainHTTP, "plain-http", "", o.PlainHTTP, "use plain http and not https")
+	cmd.Flags().BoolVar(&o.PlainHTTP, "plain-http", o.PlainHTTP, "use plain http and not https")
 	cmd.Flags().StringVarP(&o.Output, "output", "o", o.Output, "output location for artifacts")
 	cmd.Flags().StringToStringVarP(&o.Attributes, "attributes", "", o.Attributes, "list of key,value pairs (e.g. key=value) for "+
 		"retrieving artifacts by attributes")
+	cmd.Flags().BoolVar(&o.PullAll, "pull-all", o.PullAll, "pull all linked collections")
 
 	return cmd
 }
@@ -230,17 +232,48 @@ func (o *PullOptions) pullCollection(ctx context.Context, output string) (ocispe
 		}
 	}()
 
-	// TODO(jpower432): Write an method to pull blobs
-	// by attribute from the cache to a content.Store.
-	desc, err := client.Pull(ctx, o.Source, file.New(output))
-	if err != nil {
-		return desc, layerDescs, fmt.Errorf("client pull error for reference %s: %v", o.Source, err)
+	pullSource := func(source string) (ocispec.Descriptor, error) {
+		// TODO(jpower432): Write an method to pull blobs
+		// by attribute from the cache to a content.Store.
+		desc, err := client.Pull(ctx, source, file.New(output))
+		if err != nil {
+			return desc, fmt.Errorf("client pull error for reference %s: %v", o.Source, err)
+		}
+
+		o.Logger.Debugf("Pulled down %s for reference %s", desc.Digest, source)
+
+		// The cache will be populated by the pull command
+		// Ensure the resource is captured in the index.json, but
+		// tagging the reference.
+		if err := cache.Tag(ctx, desc, source); err != nil {
+			return desc, err
+		}
+		return desc, nil
 	}
 
-	// The cache will be populated by the pull command
-	// Ensure the resource is captured in the index.json, but
-	// tagging the reference.
-	return desc, layerDescs, cache.Tag(ctx, desc, o.Source)
+	desc, err := pullSource(o.Source)
+	if err != nil {
+		return desc, layerDescs, err
+	}
+
+	if o.PullAll {
+		o.Logger.Infof("Resolving linked collections for reference %s", o.Source)
+		linkedRefs, err := cache.ResolveLinks(ctx, o.Source)
+		if err != nil {
+			return desc, layerDescs, nil
+		}
+		o.Logger.Debugf("Found references %v", linkedRefs)
+		for _, ref := range linkedRefs {
+			// Not using the descriptor here since it is already
+			// being logged in debug
+			_, err := pullSource(ref)
+			if err != nil {
+				return desc, layerDescs, err
+			}
+		}
+	}
+
+	return desc, layerDescs, nil
 }
 
 // mkTempDir will make a temporary dir and return the name

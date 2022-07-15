@@ -38,7 +38,7 @@ type GraphStore interface {
 	content.PredecessorFinder
 	// Successors returns the nodes directly pointed by the current node.
 	// In other words, returns the "children" of the current descriptor.
-	Successor(ctx context.Context, node ocispec.Descriptor) ([]ocispec.Descriptor, error)
+	Successors(ctx context.Context, node ocispec.Descriptor) ([]ocispec.Descriptor, error)
 	// ResolveLinks returns all sub-collections references that are linked
 	// to the root node.
 	ResolveLinks(context.Context, string) ([]string, error)

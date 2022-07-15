@@ -178,8 +178,8 @@ func (o *BuildOptions) Run(ctx context.Context) error {
 		manifestAnnotations[schema.AnnotationSchema] = config.SchemaAddress
 	}
 	if len(linkedSchema) > 0 {
-		manifestAnnotations[schema.AnnotationSchemaLinks] = strings.Join(linkedSchema, ",")
-		manifestAnnotations[schema.AnnotationCollectionLinks] = strings.Join(config.LinkedCollections, ",")
+		manifestAnnotations[schema.AnnotationSchemaLinks] = strings.Join(linkedSchema, schema.Separator)
+		manifestAnnotations[schema.AnnotationCollectionLinks] = strings.Join(config.LinkedCollections, schema.Separator)
 	}
 
 	_, err = client.AddManifest(ctx, o.Destination, configDesc, manifestAnnotations, descs...)

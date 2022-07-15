@@ -21,10 +21,13 @@ import (
 	"github.com/uor-framework/client/content/resolver"
 	"github.com/uor-framework/client/model"
 	"github.com/uor-framework/client/model/nodes/collection"
+	"github.com/uor-framework/client/schema"
 )
 
 var (
-	_ content.Store = &Layout{}
+	_ content.Store          = &Layout{}
+	_ content.AttributeStore = &Layout{}
+	_ content.GraphStore     = &Layout{}
 )
 
 const indexFile = "index.json"
@@ -34,7 +37,7 @@ const indexFile = "index.json"
 type Layout struct {
 	internal orascontent.Storage
 	resolver *resolver.Memory
-	graph    model.DirectedGraph
+	graph    *collection.Collection
 	index    *ocispec.Index
 	rootPath string
 }
@@ -79,11 +82,47 @@ func (l *Layout) Resolve(ctx context.Context, reference string) (ocispec.Descrip
 	return l.resolver.Resolve(ctx, reference)
 }
 
-// Resolve resolves a reference to a descriptor.
+// Successors returns the nodes directly pointed by the current node.
+	// In other words, returns the "children" of the current descriptor.
+func (l *Layout) Successors(_ context.Context, node ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+	fmt.Println("not implemented")
+	return nil, nil
+}
+
+// Predecessors returns the nodes directly pointing to the current node.
+func (l *Layout) Predecessors(_ context.Context, node ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+	fmt.Println("not implemented")
+	return nil, nil
+}
+
+// ResolveByAttribute returns descriptors linked to the reference that satisfy the specified matcher.
+// Matcher is expected to compare attributes of nodes to set criteria.
 func (l *Layout) ResolveByAttribute(ctx context.Context, reference string, matcher model.Matcher) ([]ocispec.Descriptor, error) {
-	desc, err := l.resolver.Resolve(ctx, reference)
-	// TODO(jpower432): Graph traversal
-	return []ocispec.Descriptor{desc}, err
+	fmt.Println("not implemented")
+	return nil, nil
+}
+
+// ResolveLinks returns linked collection references for a collection. If the collection
+// has no links, nil is returned.
+func (l *Layout) ResolveLinks(ctx context.Context, reference string) ([]string, error) {
+	desc, err := l.Resolve(ctx, reference)
+	if err != nil {
+		return nil, err
+	}
+	r, err := l.Fetch(ctx, desc)
+	if err != nil {
+		return nil, errdef.ErrInvalidReference
+	}
+	var manifest ocispec.Manifest
+	if err := json.NewDecoder(r).Decode(&manifest); err != nil {
+		return nil, err
+	}
+	links, ok := manifest.Annotations[schema.AnnotationCollectionLinks]
+	if !ok {
+		return nil, nil
+	}
+	splitLinks := strings.Split(links, schema.Separator)
+	return splitLinks, schema.ErrNoCollectionLinks
 }
 
 // Tag tags a descriptor with a reference string.
