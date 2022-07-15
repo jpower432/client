@@ -159,6 +159,7 @@ func (o *BuildOptions) Run(ctx context.Context) error {
 		return err
 	}
 
+	// TODO(jpower432): Deduplicate linked schemas structure.
 	var linkedSchema []string
 	// Add the attributes from the config to their respective blocks
 	descs, linkedSchema, err = updateDescriptors(ctx, descs, config, links, client)
@@ -173,9 +174,12 @@ func (o *BuildOptions) Run(ctx context.Context) error {
 
 	// Write the root collection attributes
 	manifestAnnotations := map[string]string{}
-	manifestAnnotations[schema.AnnotationSchemaName] = "test"
+	if config.SchemaAddress != "" {
+		manifestAnnotations[schema.AnnotationSchema] = config.SchemaAddress
+	}
 	if len(linkedSchema) > 0 {
-		manifestAnnotations[schema.AnnotationLinks] = strings.Join(linkedSchema, ",")
+		manifestAnnotations[schema.AnnotationSchemaLinks] = strings.Join(linkedSchema, ",")
+		manifestAnnotations[schema.AnnotationCollectionLinks] = strings.Join(config.LinkedCollections, ",")
 	}
 
 	_, err = client.AddManifest(ctx, o.Destination, configDesc, manifestAnnotations, descs...)
@@ -189,6 +193,13 @@ func (o *BuildOptions) Run(ctx context.Context) error {
 	}
 
 	o.Logger.Infof("Artifact %s built with reference name %s\n", desc.Digest, o.Destination)
+
+	// Cleanup. Remove generated link files.
+	for file := range links {
+		if err := os.Remove(file); err != nil {
+			return err
+		}
+	}
 
 	return client.Destroy()
 }
@@ -210,7 +221,7 @@ func updateDescriptors(ctx context.Context, descs []ocispec.Descriptor, cfg v1al
 				return nil, nil, err
 			}
 			joinedLinks := strings.Join(linkedSchemas, ",")
-			desc.Annotations[schema.AnnotationLinks] = joinedLinks
+			desc.Annotations[schema.AnnotationSchemaLinks] = joinedLinks
 			linkedSchema = append(linkedSchema, sch)
 			linkedSchema = append(linkedSchema, linkedSchemas...)
 
@@ -239,6 +250,7 @@ func updateDescriptors(ctx context.Context, descs []ocispec.Descriptor, cfg v1al
 			}
 		}
 	}
+
 	return descs, linkedSchema, nil
 }
 

@@ -15,7 +15,7 @@ import (
 
 func TestExists(t *testing.T) {
 	cacheDir := "testdata/valid"
-	l, err := New(cacheDir)
+	l, err := New(context.TODO(), cacheDir)
 	require.NoError(t, err)
 	type spec struct {
 		name     string
@@ -97,7 +97,7 @@ func TestTag(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	l, err := New(cacheDir)
+	l, err := New(context.TODO(), cacheDir)
 	require.NoError(t, err)
 
 	desc := ocispec.Descriptor{Digest: "sha256:2e30f6131ce2164ed5ef017845130727291417d60a1be6fad669bdc4473289cd"}
@@ -121,10 +121,12 @@ func TestTag(t *testing.T) {
 
 func TestSaveIndex(t *testing.T) {
 	cacheDir := t.TempDir()
-	l, err := New(cacheDir)
+
+	ctx := context.TODO()
+	l, err := New(ctx, cacheDir)
 	require.NoError(t, err)
 
-	l.descriptorLookup.Store("test", ocispec.Descriptor{})
+	l.resolver.Tag(ctx, ocispec.Descriptor{}, "test")
 	require.NoError(t, l.SaveIndex())
 
 	_, err = os.Stat(filepath.Join(cacheDir, indexFile))
@@ -141,8 +143,9 @@ func TestSaveIndex(t *testing.T) {
 
 func TestResolve(t *testing.T) {
 	cacheDir := "testdata/valid"
-	l, err := New(cacheDir)
+	l, err := New(context.TODO(), cacheDir)
 	require.NoError(t, err)
+
 	type spec struct {
 		name     string
 		ref      string
@@ -183,10 +186,11 @@ func TestResolve(t *testing.T) {
 
 func TestLoadIndex(t *testing.T) {
 	cacheDir := "testdata/valid"
-	l, err := New(cacheDir)
+	ctx := context.TODO()
+	l, err := New(ctx, cacheDir)
 	require.NoError(t, err)
 
-	require.NoError(t, l.loadIndex())
+	require.NoError(t, l.loadIndex(ctx))
 
 	ii, err := l.Index()
 	require.NoError(t, err)

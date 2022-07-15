@@ -83,7 +83,7 @@ func (o *PushOptions) Run(ctx context.Context) error {
 
 	desc, err := client.Push(ctx, cache, o.Destination)
 	if err != nil {
-		return fmt.Errorf("error publishing content to locahost:5001/client-flat-test:latest: %v", err)
+		return fmt.Errorf("error publishing content to %s: %v", o.Destination, err)
 	}
 
 	o.Logger.Infof("Artifact %s published to %s\n", desc.Digest, o.Destination)

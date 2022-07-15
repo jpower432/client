@@ -11,8 +11,19 @@ import (
 )
 
 const (
-	AnnotationSchemaName = "uor.schema"
-	AnnotationLinks      = "uor.schema.linked"
+	// AnnotationsSchemaName is the reference to the
+	// default schema of the collection.
+	AnnotationSchema = "uor.schema"
+	// AnnotationSchemaLinks is the reference to linked
+	// schemas for a collection. This will define all referenced
+	// schemas for the collection and sub-collection. The tree will
+	// be fully resolved.
+	AnnotationSchemaLinks = "uor.schema.linked"
+	// AnnotationCollectionLinks references the collections
+	// that are linked to a collection node. The will only
+	// reference adjacent collection and will not descend
+	// into sub-collections.
+	AnnotationCollectionLinks = "uor.collections.linked"
 )
 
 var (
@@ -33,11 +44,11 @@ func Fetch(ctx context.Context, reference string, client registryclient.Remote) 
 		return "", nil, err
 	}
 
-	schema, ok := manifest.Annotations[AnnotationSchemaName]
+	schema, ok := manifest.Annotations[AnnotationSchema]
 	if !ok {
 		return "", nil, ErrNoKnownSchema
 	}
-	links := []string{manifest.Annotations[AnnotationLinks]}
+	links := []string{manifest.Annotations[AnnotationSchemaLinks]}
 
 	return schema, links, err
 }

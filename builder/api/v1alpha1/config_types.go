@@ -8,6 +8,7 @@ type DataSetConfiguration struct {
 	Kind              string   `mapstructure:"kind,omitempty"`
 	APIVersion        string   `mapstructure:"apiVersion,omitempty"`
 	Files             []File   `mapstructure:"files,omitempty"`
+	SchemaAddress     string   `mapstructure:"schemaAddress,omitempty"`
 	LinkedCollections []string `mapstructure:"linkedCollections,omitempty"`
 }
 

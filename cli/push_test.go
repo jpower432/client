@@ -101,11 +101,11 @@ func TestPushRun(t *testing.T) {
 					Logger:   testlogr,
 					cacheDir: "testdata/cache",
 				},
-				Destination: "locahost:5001/client-flat-test:latest",
+				Destination: "localhost:5001/client-flat-test:latest",
 				PlainHTTP:   true,
 			},
-			expError: "error publishing content to locahost:5001/client-flat-test:latest:" +
-				" descriptor for reference locahost:5001/client-flat-test:latest is not stored",
+			expError: "error publishing content to localhost:5001/client-flat-test:latest:" +
+				" descriptor for reference localhost:5001/client-flat-test:latest is not stored",
 		},
 	}
 
@@ -137,7 +137,7 @@ func prepCache(t *testing.T, ref string, cacheDir string) {
 	fileContent := []byte("Hello World!\n")
 	ctx := context.TODO()
 
-	ociStore, err := layout.New(cacheDir)
+	ociStore, err := layout.New(ctx, cacheDir)
 	require.NoError(t, err)
 	layerDesc, err := pushBlob(ctx, ocispec.MediaTypeImageLayer, fileContent, ociStore)
 	require.NoError(t, err)
