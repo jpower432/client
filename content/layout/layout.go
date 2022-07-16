@@ -18,10 +18,9 @@ import (
 	"oras.land/oras-go/v2/errdef"
 
 	"github.com/uor-framework/client/content"
-	"github.com/uor-framework/client/content/resolver"
 	"github.com/uor-framework/client/model"
 	"github.com/uor-framework/client/model/nodes/collection"
-	"github.com/uor-framework/client/schema"
+	"github.com/uor-framework/client/ocimanifest"
 )
 
 var (
@@ -36,7 +35,7 @@ const indexFile = "index.json"
 // content.Storage.
 type Layout struct {
 	internal orascontent.Storage
-	resolver *resolver.Memory
+	resolver *content.Resolver
 	graph    *collection.Collection
 	index    *ocispec.Index
 	rootPath string
@@ -46,7 +45,7 @@ type Layout struct {
 func New(ctx context.Context, rootPath string) (*Layout, error) {
 	l := &Layout{
 		internal: oci.NewStorage(rootPath),
-		resolver: resolver.NewMemory(),
+		resolver: content.NewResolver(),
 		graph:    collection.New(rootPath),
 		rootPath: filepath.Clean(rootPath),
 	}
@@ -83,7 +82,7 @@ func (l *Layout) Resolve(ctx context.Context, reference string) (ocispec.Descrip
 }
 
 // Successors returns the nodes directly pointed by the current node.
-	// In other words, returns the "children" of the current descriptor.
+// In other words, returns the "children" of the current descriptor.
 func (l *Layout) Successors(_ context.Context, node ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 	fmt.Println("not implemented")
 	return nil, nil
@@ -117,12 +116,12 @@ func (l *Layout) ResolveLinks(ctx context.Context, reference string) ([]string, 
 	if err := json.NewDecoder(r).Decode(&manifest); err != nil {
 		return nil, err
 	}
-	links, ok := manifest.Annotations[schema.AnnotationCollectionLinks]
+	links, ok := manifest.Annotations[ocimanifest.AnnotationCollectionLinks]
 	if !ok {
 		return nil, nil
 	}
-	splitLinks := strings.Split(links, schema.Separator)
-	return splitLinks, schema.ErrNoCollectionLinks
+	splitLinks := strings.Split(links, ocimanifest.Separator)
+	return splitLinks, ocimanifest.ErrNoCollectionLinks
 }
 
 // Tag tags a descriptor with a reference string.

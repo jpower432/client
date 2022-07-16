@@ -17,9 +17,9 @@ import (
 	"github.com/uor-framework/client/builder/api/v1alpha1"
 	load "github.com/uor-framework/client/builder/config"
 	"github.com/uor-framework/client/content/layout"
+	"github.com/uor-framework/client/ocimanifest"
 	"github.com/uor-framework/client/registryclient"
 	"github.com/uor-framework/client/registryclient/orasclient"
-	"github.com/uor-framework/client/schema"
 	"github.com/uor-framework/client/util/workspace"
 )
 
@@ -175,11 +175,11 @@ func (o *BuildOptions) Run(ctx context.Context) error {
 	// Write the root collection attributes
 	manifestAnnotations := map[string]string{}
 	if config.SchemaAddress != "" {
-		manifestAnnotations[schema.AnnotationSchema] = config.SchemaAddress
+		manifestAnnotations[ocimanifest.AnnotationSchema] = config.SchemaAddress
 	}
 	if len(linkedSchema) > 0 {
-		manifestAnnotations[schema.AnnotationSchemaLinks] = strings.Join(linkedSchema, schema.Separator)
-		manifestAnnotations[schema.AnnotationCollectionLinks] = strings.Join(config.LinkedCollections, schema.Separator)
+		manifestAnnotations[ocimanifest.AnnotationSchemaLinks] = strings.Join(linkedSchema, ocimanifest.Separator)
+		manifestAnnotations[ocimanifest.AnnotationCollectionLinks] = strings.Join(config.LinkedCollections, ocimanifest.Separator)
 	}
 
 	_, err = client.AddManifest(ctx, o.Destination, configDesc, manifestAnnotations, descs...)
@@ -216,12 +216,12 @@ func updateDescriptors(ctx context.Context, descs []ocispec.Descriptor, cfg v1al
 		// For each file in the config
 		if l, ok := links[filename]; ok {
 			var err error
-			sch, linkedSchemas, err := schema.Fetch(ctx, l, client)
+			sch, linkedSchemas, err := ocimanifest.FetchSchema(ctx, l, client)
 			if err != nil {
 				return nil, nil, err
 			}
 			joinedLinks := strings.Join(linkedSchemas, ",")
-			desc.Annotations[schema.AnnotationSchemaLinks] = joinedLinks
+			desc.Annotations[ocimanifest.AnnotationSchemaLinks] = joinedLinks
 			linkedSchema = append(linkedSchema, sch)
 			linkedSchema = append(linkedSchema, linkedSchemas...)
 

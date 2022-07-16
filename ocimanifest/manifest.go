@@ -1,12 +1,14 @@
-package schema
+package ocimanifest
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
+	"github.com/uor-framework/client/model/nodes/collection"
 	"github.com/uor-framework/client/registryclient"
 )
 
@@ -38,8 +40,8 @@ var (
 	ErrNoCollectionLinks = errors.New("no collection links")
 )
 
-// Fetch fetches schema information for a reference.
-func Fetch(ctx context.Context, reference string, client registryclient.Remote) (string, []string, error) {
+// FetchSchema fetches schema information for a reference.
+func FetchSchema(ctx context.Context, reference string, client registryclient.Remote) (string, []string, error) {
 	_, manBytes, err := client.GetManifest(ctx, reference)
 	if err != nil {
 		return "", nil, err
@@ -57,4 +59,16 @@ func Fetch(ctx context.Context, reference string, client registryclient.Remote) 
 	links := []string{manifest.Annotations[AnnotationSchemaLinks]}
 
 	return schema, links, err
+}
+
+// ManifestToCollection converts a UOR managed OCI manifest to a Collection.
+func ManifestToCollection(_ ocispec.Manifest) (collection.Collection, error) {
+	fmt.Println("not implemented")
+	return collection.Collection{}, nil
+}
+
+// CollectionToManifest converts a Collection to a UOR managed OCI manifest.
+func CollectionToManifest(_ collection.Collection) (ocispec.Manifest, error) {
+	fmt.Println("not implemented")
+	return ocispec.Manifest{}, nil
 }

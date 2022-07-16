@@ -97,7 +97,7 @@ func (o *PullOptions) Run(ctx context.Context) error {
 	if o.Attributes != nil {
 		pullFn = withAttributes
 	} else {
-		pullFn = func(ctx context.Context, po PullOptions) (ocispec.Descriptor, error) {
+		pullFn = func(ctx context.Context, _ PullOptions) (ocispec.Descriptor, error) {
 			desc, _, err := o.pullCollection(ctx, o.Output)
 			return desc, err
 		}
