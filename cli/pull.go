@@ -19,6 +19,7 @@ import (
 	"github.com/uor-framework/client/model"
 	"github.com/uor-framework/client/model/nodes/basic"
 	"github.com/uor-framework/client/model/nodes/collection"
+	"github.com/uor-framework/client/ocimanifest"
 	"github.com/uor-framework/client/registryclient/orasclient"
 	"github.com/uor-framework/client/util/workspace"
 )
@@ -135,7 +136,7 @@ func withAttributes(ctx context.Context, o PullOptions) (ocispec.Descriptor, err
 		if !ok {
 			continue
 		}
-		attr := attributes.AnnotationsToAttributes(ldesc.Annotations)
+		attr := ocimanifest.AnnotationsToAttributes(ldesc.Annotations)
 		o.Logger.Debugf("Adding attributes %s for file %s", attr.String(), filename)
 		attributesByFile[filename] = attr
 	}

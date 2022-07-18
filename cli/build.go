@@ -5,11 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
-	"regexp"
 	"strings"
 
-	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/spf13/cobra"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -131,13 +128,6 @@ func (o *BuildOptions) Run(ctx context.Context) error {
 		}
 	}
 
-	// Add links adds additional files to the pushing directory, so it must
-	// happen before the walk
-	links, err := addLinks(config, o.RootDir)
-	if err != nil {
-		return err
-	}
-
 	// To allow the files to be loaded relative to the render
 	// workspace, change to the render directory. This is required
 	// to get path correct in the description annotations.
@@ -159,15 +149,20 @@ func (o *BuildOptions) Run(ctx context.Context) error {
 		return err
 	}
 
-	// TODO(jpower432): Deduplicate linked schemas structure.
-	var linkedSchema []string
-	// Add the attributes from the config to their respective blocks
-	descs, linkedSchema, err = updateDescriptors(ctx, descs, config, links, client)
+	descs, err = ocimanifest.UpdateLayerDescriptors(descs, config)
 	if err != nil {
 		return err
 	}
 
-	configDesc, err := client.AddContent(ctx, orasclient.UorConfigMediaType, []byte("{}"), nil)
+	linkedDescs, linkedSchemas, err := gatherLinkedCollections(ctx, config, client)
+	if err != nil {
+		return err
+	}
+
+	descs = append(descs, linkedDescs...)
+
+	// Add the attributes from the config to their respective blocks
+	configDesc, err := client.AddContent(ctx, ocimanifest.UORConfigMediaType, []byte("{}"), nil)
 	if err != nil {
 		return err
 	}
@@ -177,9 +172,10 @@ func (o *BuildOptions) Run(ctx context.Context) error {
 	if config.SchemaAddress != "" {
 		manifestAnnotations[ocimanifest.AnnotationSchema] = config.SchemaAddress
 	}
-	if len(linkedSchema) > 0 {
-		manifestAnnotations[ocimanifest.AnnotationSchemaLinks] = strings.Join(linkedSchema, ocimanifest.Separator)
-		manifestAnnotations[ocimanifest.AnnotationCollectionLinks] = strings.Join(config.LinkedCollections, ocimanifest.Separator)
+
+	if len(linkedDescs) > 0 {
+		manifestAnnotations[ocimanifest.AnnotationSchemaLinks] = formatLinks(linkedSchemas)
+		manifestAnnotations[ocimanifest.AnnotationCollectionLinks] = formatLinks(config.LinkedCollections)
 	}
 
 	_, err = client.AddManifest(ctx, o.Destination, configDesc, manifestAnnotations, descs...)
@@ -194,86 +190,43 @@ func (o *BuildOptions) Run(ctx context.Context) error {
 
 	o.Logger.Infof("Artifact %s built with reference name %s\n", desc.Digest, o.Destination)
 
-	// Cleanup. Remove generated link files.
-	for file := range links {
-		if err := os.Remove(file); err != nil {
-			return err
-		}
-	}
-
 	return client.Destroy()
 }
 
-// updateDescriptors adds the attributes of each file listed in the config
-// to the annotations of its respective descriptor.
-// FIXME(jpower432): Simplify the logic in this method.
-func updateDescriptors(ctx context.Context, descs []ocispec.Descriptor, cfg v1alpha1.DataSetConfiguration, links map[string]string, client registryclient.Client) ([]ocispec.Descriptor, []string, error) {
-	// For each descriptor
-	var linkedSchema []string
-	for _, desc := range descs {
-		// Get the filename of the block
-		filename := desc.Annotations[ocispec.AnnotationTitle]
-		// For each file in the config
-		if l, ok := links[filename]; ok {
-			var err error
-			sch, linkedSchemas, err := ocimanifest.FetchSchema(ctx, l, client)
-			if err != nil {
-				return nil, nil, err
-			}
-			joinedLinks := strings.Join(linkedSchemas, ",")
-			desc.Annotations[ocimanifest.AnnotationSchemaLinks] = joinedLinks
-			linkedSchema = append(linkedSchema, sch)
-			linkedSchema = append(linkedSchema, linkedSchemas...)
-
-		} else {
-			for i2, file := range cfg.Files {
-				// If the config has a grouping declared, make a valid regex.
-				if strings.Contains(file.File, "*") && !strings.Contains(file.File, ".*") {
-					file.File = strings.Replace(file.File, "*", ".*", -1)
-				} else {
-					file.File = strings.Replace(file.File, file.File, "^"+file.File+"$", -1)
-				}
-				namesearch, err := regexp.Compile(file.File)
-				if err != nil {
-					return []ocispec.Descriptor{}, nil, err
-				}
-				// Find the matching descriptor
-				if namesearch.Match([]byte(filename)) {
-					// Get the k/v pairs from the config and add them to the block's annotations.
-					for k, v := range cfg.Files[i2].Attributes {
-						desc.Annotations[k] = v
-					}
-				} else {
-					// If the block does not have a corresponding config element, skip it.
-					continue
-				}
-			}
+// gatherLinkedCollections create null descriptors to denotes linked collections in a manifest with schema link information.
+func gatherLinkedCollections(ctx context.Context, cfg v1alpha1.DataSetConfiguration, client registryclient.Client) ([]ocispec.Descriptor, []string, error) {
+	var allLinkedSchemas []string
+	var linkedDescs []ocispec.Descriptor
+	for _, collection := range cfg.LinkedCollections {
+		schema, linkedSchemas, err := ocimanifest.FetchSchema(ctx, collection, client)
+		if err != nil {
+			return nil, nil, err
 		}
-	}
+		allLinkedSchemas = append(allLinkedSchemas, linkedSchemas...)
+		allLinkedSchemas = append(allLinkedSchemas, schema)
 
-	return descs, linkedSchema, nil
+		annotations := map[string]string{
+			ocimanifest.AnnotationSchema:      schema,
+			ocimanifest.AnnotationSchemaLinks: formatLinks(linkedSchemas),
+		}
+		// The bytes contain the collection name to keep the blobs unique within the manifest
+		desc, err := client.AddContent(ctx, ocispec.MediaTypeImageLayer, []byte(collection), annotations)
+		if err != nil {
+			return nil, nil, err
+		}
+		linkedDescs = append(linkedDescs, desc)
+	}
+	return linkedDescs, allLinkedSchemas, nil
 }
 
-// addLinks creates links and returns a map of links and an error.
-// This will result in the creation of a descriptor that will be used
-// to denoted linked schemas in the collection.
-func addLinks(d v1alpha1.DataSetConfiguration, rootPath string) (map[string]string, error) {
-	// Create a link file with the name as the digest of the content
-	links := make(map[string]string)
-	for _, link := range d.LinkedCollections {
-		dgst := digest.FromString(link)
-		path := filepath.Join(rootPath, dgst.String())
-		f, err := os.Create(path)
-		if err != nil {
-			return nil, err
-		}
-		defer f.Close()
-
-		_, err = f.WriteString(link)
-		if err != nil {
-			return nil, err
-		}
-		links[dgst.String()] = link
+func formatLinks(links []string) string {
+	n := len(links)
+	switch {
+	case n == 1:
+		return links[0]
+	case n > 1:
+		return strings.Join(links, ocimanifest.Separator)
+	default:
+		return ""
 	}
-	return links, nil
 }

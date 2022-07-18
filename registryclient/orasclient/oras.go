@@ -24,8 +24,6 @@ import (
 	"github.com/uor-framework/client/registryclient/orasclient/internal/cache"
 )
 
-const UorConfigMediaType = "application/vnd.uor.config.v1+json"
-
 type orasClient struct {
 	insecure      bool
 	plainHTTP     bool

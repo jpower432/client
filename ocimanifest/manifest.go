@@ -5,9 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
+	"strings"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
+	"github.com/uor-framework/client/attributes"
+	"github.com/uor-framework/client/builder/api/v1alpha1"
+	"github.com/uor-framework/client/model"
 	"github.com/uor-framework/client/model/nodes/collection"
 	"github.com/uor-framework/client/registryclient"
 )
@@ -29,13 +34,16 @@ const (
 	// Separator is the value used to denote a list of
 	// schema or collection in a manifest.
 	Separator = ","
+	// UORConfigMediaType is the manifest config media type
+	// for UOR OCI manifests.
+	UORConfigMediaType = "application/vnd.uor.config.v1+json"
 )
 
 var (
 	// ErrNoKnownSchema denotes that no schema
 	// annotation is set on the manifest.
 	ErrNoKnownSchema = errors.New("no schema")
-	// ErrNoCollectionLinkes denotes that the manifest
+	// ErrNoCollectionLinks denotes that the manifest
 	// does contain annotation that set collection links.
 	ErrNoCollectionLinks = errors.New("no collection links")
 )
@@ -59,6 +67,55 @@ func FetchSchema(ctx context.Context, reference string, client registryclient.Re
 	links := []string{manifest.Annotations[AnnotationSchemaLinks]}
 
 	return schema, links, err
+}
+
+// UpdateLayerDescriptors updates layers descriptor annotations with user provided key,value pairs
+func UpdateLayerDescriptors(descs []ocispec.Descriptor, cfg v1alpha1.DataSetConfiguration) ([]ocispec.Descriptor, error) {
+	var updateDescs []ocispec.Descriptor
+	for _, desc := range descs {
+		filename, ok := desc.Annotations[ocispec.AnnotationTitle]
+		if !ok {
+			// skip any descriptor with no name attached
+			continue
+		}
+		for _, file := range cfg.Files {
+			// If the config has a grouping declared, make a valid regex.
+			if strings.Contains(file.File, "*") && !strings.Contains(file.File, ".*") {
+				file.File = strings.Replace(file.File, "*", ".*", -1)
+			} else {
+				file.File = strings.Replace(file.File, file.File, "^"+file.File+"$", -1)
+			}
+			namesearch, err := regexp.Compile(file.File)
+			if err != nil {
+				return nil, err
+			}
+
+			if namesearch.Match([]byte(filename)) {
+				// Get the k/v pairs from the config and add them to the descriptor annotations.
+				for k, v := range file.Attributes {
+					desc.Annotations[k] = v
+				}
+			}
+		}
+		updateDescs = append(updateDescs, desc)
+	}
+
+	return updateDescs, nil
+}
+
+// AnnotationsToAttributes converts annotations from a descriptors
+// to an Attribute type.
+func AnnotationsToAttributes(annotations map[string]string) model.Attributes {
+	attr := attributes.Attributes{}
+	for key, value := range annotations {
+		curr, exists := attr[key]
+		if !exists {
+			curr = map[string]struct{}{}
+		}
+		curr[value] = struct{}{}
+		attr[key] = curr
+	}
+	return attr
 }
 
 // ManifestToCollection converts a UOR managed OCI manifest to a Collection.
