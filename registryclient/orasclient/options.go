@@ -7,6 +7,7 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/file"
+	"oras.land/oras-go/v2/content/memory"
 
 	"github.com/uor-framework/client/content"
 	"github.com/uor-framework/client/registryclient"
@@ -65,7 +66,7 @@ func NewClient(options ...ClientOption) (registryclient.Client, error) {
 	// We not allowing this to be configurable since
 	// oras file stores turn artifact into descriptors in
 	// specific way we want to honor.
-	client.artifactStore = file.New("")
+	client.artifactStore = file.NewWithFallbackStorage("", memory.New())
 
 	return client, nil
 }
