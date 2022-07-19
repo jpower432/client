@@ -1,8 +1,8 @@
 package descriptor
 
 import (
+	"github.com/uor-framework/client/attributes"
 	"github.com/uor-framework/client/model"
-	"github.com/uor-framework/client/ocimanifest"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -19,7 +19,7 @@ var _ model.Node = &Node{}
 
 // NewNode create an empty Descriptor Node.
 func NewNode(id string, descriptor ocispec.Descriptor) *Node {
-	attr := ocimanifest.AnnotationsToAttributes(descriptor.Annotations)
+	attr := AnnotationsToAttributes(descriptor.Annotations)
 	return &Node{
 		id:         id,
 		attributes: attr,
@@ -46,4 +46,19 @@ func (n *Node) Attributes() model.Attributes {
 // Descriptor returns the underlying descriptor object.
 func (n *Node) Descriptor() ocispec.Descriptor {
 	return n.descriptor
+}
+
+// AnnotationsToAttributes converts annotations from a descriptors
+// to an Attribute type.
+func AnnotationsToAttributes(annotations map[string]string) model.Attributes {
+	attr := attributes.Attributes{}
+	for key, value := range annotations {
+		curr, exists := attr[key]
+		if !exists {
+			curr = map[string]struct{}{}
+		}
+		curr[value] = struct{}{}
+		attr[key] = curr
+	}
+	return attr
 }

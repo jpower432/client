@@ -1,4 +1,4 @@
-package ocimanifest
+package descriptor
 
 import (
 	"testing"

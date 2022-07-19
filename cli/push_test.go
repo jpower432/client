@@ -150,7 +150,7 @@ func prepCache(t *testing.T, ref string, cacheDir string) {
 	configDesc, err := pushBlob(ctx, ocispec.MediaTypeImageConfig, config, ociStore)
 	require.NoError(t, err)
 
-	manifest, err := generateManifest(configDesc, layerDesc)
+	manifest, err := generateManifest(configDesc, nil, layerDesc)
 	require.NoError(t, err)
 
 	manifestDesc, err := pushBlob(ctx, ocispec.MediaTypeImageManifest, manifest, ociStore)

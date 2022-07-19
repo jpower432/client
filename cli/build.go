@@ -57,10 +57,10 @@ func NewBuildCmd(rootOpts *RootOptions) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&o.DSConfig, "dsconfig", "", o.DSConfig, "DataSet config path")
-	cmd.Flags().StringArrayVarP(&o.Configs, "configs", "c", o.Configs, "auth config paths")
-	cmd.Flags().BoolVarP(&o.Insecure, "insecure", "", o.Insecure, "allow connections to SSL registry without certs")
-	cmd.Flags().BoolVarP(&o.PlainHTTP, "plain-http", "", o.PlainHTTP, "use plain http and not https")
+	cmd.Flags().StringVarP(&o.DSConfig, "dsconfig", "", o.DSConfig, "dataset config path")
+	cmd.Flags().StringArrayVarP(&o.Configs, "configs", "c", o.Configs, "auth config paths when contacting registries")
+	cmd.Flags().BoolVarP(&o.Insecure, "insecure", "", o.Insecure, "allow connections to registries SSL registry without certs")
+	cmd.Flags().BoolVarP(&o.PlainHTTP, "plain-http", "", o.PlainHTTP, "use plain http and not https when contacting registries")
 
 	return cmd
 }
@@ -202,7 +202,11 @@ func gatherLinkedCollections(ctx context.Context, cfg v1alpha1.DataSetConfigurat
 		if err != nil {
 			return nil, nil, err
 		}
-		allLinkedSchemas = append(allLinkedSchemas, linkedSchemas...)
+
+		if len(linkedSchemas) != 0 {
+			allLinkedSchemas = append(allLinkedSchemas, linkedSchemas...)
+		}
+
 		allLinkedSchemas = append(allLinkedSchemas, schema)
 
 		annotations := map[string]string{

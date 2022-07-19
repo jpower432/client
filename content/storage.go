@@ -20,7 +20,7 @@ type Store interface {
 	content.TagResolver
 }
 
-// Attribute Store defines the methods for retrieve information
+// AttributeStore defines the methods for retrieve information
 // by attribute.
 type AttributeStore interface {
 	Store
@@ -34,11 +34,8 @@ type AttributeStore interface {
 // Storage, TagResolver, and PredecessorFinder interfaces for use with `oras` extended copy methods.
 type GraphStore interface {
 	Store
-	// Predecessors returns the nodes directly pointing to the current node.
+	// PredecessorFinder returns the nodes directly pointing to the current node.
 	content.PredecessorFinder
-	// Successors returns the nodes directly pointed by the current node.
-	// In other words, returns the "children" of the current descriptor.
-	Successors(ctx context.Context, node ocispec.Descriptor) ([]ocispec.Descriptor, error)
 	// ResolveLinks returns all sub-collections references that are linked
 	// to the root node.
 	ResolveLinks(context.Context, string) ([]string, error)

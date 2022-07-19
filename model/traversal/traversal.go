@@ -23,10 +23,10 @@ type Tracker struct {
 }
 
 // NewTracker returns a new Tracker instance.
-func NewTracker(budget *Budget) Tracker {
+func NewTracker(root model.Node, budget *Budget) Tracker {
 	t := Tracker{
 		budget: budget,
-		Path:   NewPath(nil),
+		Path:   NewPath(root),
 		seen:   map[string]struct{}{},
 	}
 	return t
@@ -37,14 +37,14 @@ type VisitFunc func(Tracker, model.Node) error
 
 // Walk traverses a series of Node per the graph.
 func Walk(start model.Node, graph model.DirectedGraph, fn VisitFunc) error {
-	tracker := NewTracker(nil)
+	tracker := NewTracker(start, nil)
 	return tracker.Walk(start, graph, fn)
 }
 
 // WalkNested visits the current nodes and visits
 // nested nodes.
 func WalkNested(start model.Node, fn VisitFunc) error {
-	tracker := NewTracker(nil)
+	tracker := NewTracker(start, nil)
 	return tracker.WalkNested(start, fn)
 }
 

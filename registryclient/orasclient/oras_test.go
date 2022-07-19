@@ -34,6 +34,18 @@ func TestAddFiles(t *testing.T) {
 	})
 }
 
+func TestAddContent(t *testing.T) {
+	t.Run("Success/OneArtifact", func(t *testing.T) {
+		ctx := context.TODO()
+		expDigest := "sha256:cf80cd8aed482d5d1527d7dc72fceff84e6326592848447d2dc0b0e87dfc9a90"
+		c, err := NewClient(WithPlainHTTP(true))
+		require.NoError(t, err)
+		desc, err := c.AddContent(ctx, "", []byte("testing"), nil)
+		require.NoError(t, err)
+		require.Equal(t, expDigest, desc.Digest.String())
+	})
+}
+
 // TODO(jpower432): Create a mock client to mock non-tested actions
 func TestAddManifest(t *testing.T) {
 	t.Run("Success/OneArtifact", func(t *testing.T) {

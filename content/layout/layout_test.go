@@ -11,6 +11,9 @@ import (
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/require"
+	
+	"github.com/uor-framework/client/attributes"
+	"github.com/uor-framework/client/model"
 )
 
 func TestExists(t *testing.T) {
@@ -62,6 +65,9 @@ func TestTag(t *testing.T) {
 	cacheDir := t.TempDir()
 	source := "testdata/valid"
 	err := filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 		// Do not copy in the index file. We are generating a new one for this test.
 		if info.Name() == indexFile {
 			return nil
@@ -126,7 +132,7 @@ func TestSaveIndex(t *testing.T) {
 	l, err := New(ctx, cacheDir)
 	require.NoError(t, err)
 
-	l.resolver.Tag(ctx, ocispec.Descriptor{}, "test")
+	require.NoError(t, l.resolver.Tag(ctx, ocispec.Descriptor{}, "test"))
 	require.NoError(t, l.SaveIndex())
 
 	_, err = os.Stat(filepath.Join(cacheDir, indexFile))
@@ -226,6 +232,122 @@ func TestValidateOCILayoutFile(t *testing.T) {
 				require.EqualError(t, err, c.expError)
 			} else {
 				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestPredecessors(t *testing.T) {
+	cacheDir := "testdata/valid"
+	expected := []ocispec.Descriptor{{
+		MediaType:   "application/vnd.oci.image.manifest.v1+json",
+		Digest:      "sha256:473f7d69dbc51105aff4bb2f7ec80e27402d2f40c3e9a076e8c773b15969eadf",
+		Size:        1013,
+		Annotations: map[string]string{"org.opencontainers.image.ref.name": "localhost:5001/test:latest"},
+	}}
+	ctx := context.TODO()
+	l, err := New(ctx, cacheDir)
+	require.NoError(t, err)
+
+	desc := ocispec.Descriptor{
+		MediaType: ocispec.MediaTypeImageManifest,
+		Digest:    "sha256:5c29ebcf4a3e7ac6dca6dcea98b4fa98de57c4aca65fa0b49989fbeab1dfdf84",
+		Size:      32,
+	}
+	pre, err := l.Predecessors(ctx, desc)
+	require.NoError(t, err)
+	require.Equal(t, expected, pre)
+
+}
+
+func TestResolveByAttribute(t *testing.T) {
+	type spec struct {
+		name     string
+		cacheDir string
+		matcher  model.Matcher
+		ref      string
+		expRes   []ocispec.Descriptor
+		expError string
+	}
+
+	cases := []spec{
+		{
+			name:     "Success/MatchFound",
+			cacheDir: "testdata/attributes",
+			ref:      "localhost:5001/test1:latest",
+			matcher: &attributes.PartialAttributeMatcher{
+				"type": "jpg",
+			},
+			expRes: []ocispec.Descriptor{
+				{
+					MediaType:   "image/jpeg",
+					Digest:      "sha256:2e30f6131ce2164ed5ef017845130727291417d60a1be6fad669bdc4473289cd",
+					Size:        5536,
+					Annotations: map[string]string{"org.opencontainers.image.title": "images/fish.jpg", "type": "jpg"},
+				},
+			},
+		},
+		{
+			name:     "Success/NoMatchingAttributes",
+			cacheDir: "testdata/valid",
+			ref:      "localhost:5001/test:latest",
+			matcher: &attributes.ExactAttributeMatcher{
+				"type": "jpg",
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ctx := context.TODO()
+			l, err := New(ctx, c.cacheDir)
+			require.NoError(t, err)
+			res, err := l.ResolveByAttribute(ctx, c.ref, c.matcher)
+			if c.expError != "" {
+				require.EqualError(t, err, c.expError)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, c.expRes, res)
+			}
+		})
+	}
+}
+
+func TestResolveLinks(t *testing.T) {
+	type spec struct {
+		name     string
+		cacheDir string
+		ref      string
+		expRes   []string
+		expError string
+	}
+
+	cases := []spec{
+		{
+			name:     "Success/OCILayoutFileWithCorrectVersion",
+			cacheDir: "testdata/attributes",
+			ref:      "localhost:5001/test3:latest",
+			expRes:   []string{"localhost:5001/test1:latest"},
+		},
+		{
+			name:     "Failure/NoCollectionLinks",
+			cacheDir: "testdata/valid",
+			ref:      "localhost:5001/test:latest",
+			expError: "no collection links",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ctx := context.TODO()
+			l, err := New(ctx, c.cacheDir)
+			require.NoError(t, err)
+			res, err := l.ResolveLinks(ctx, c.ref)
+			if c.expError != "" {
+				require.EqualError(t, err, c.expError)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, c.expRes, res)
 			}
 		})
 	}

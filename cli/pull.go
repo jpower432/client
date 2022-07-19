@@ -19,6 +19,7 @@ import (
 	"github.com/uor-framework/client/model"
 	"github.com/uor-framework/client/model/nodes/basic"
 	"github.com/uor-framework/client/model/nodes/collection"
+	"github.com/uor-framework/client/model/nodes/descriptor"
 	"github.com/uor-framework/client/ocimanifest"
 	"github.com/uor-framework/client/registryclient/orasclient"
 	"github.com/uor-framework/client/util/workspace"
@@ -62,9 +63,9 @@ func NewPullCmd(rootOpts *RootOptions) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringArrayVarP(&o.Configs, "auth-configs", "c", o.Configs, "auth config paths")
+	cmd.Flags().StringArrayVarP(&o.Configs, "configs", "c", o.Configs, "auth config paths when contacting registries")
 	cmd.Flags().BoolVarP(&o.Insecure, "insecure", "", o.Insecure, "allow connections to SSL registry without certs")
-	cmd.Flags().BoolVar(&o.PlainHTTP, "plain-http", o.PlainHTTP, "use plain http and not https")
+	cmd.Flags().BoolVarP(&o.PlainHTTP, "plain-http", "", o.PlainHTTP, "use plain http and not https when contacting registries")
 	cmd.Flags().StringVarP(&o.Output, "output", "o", o.Output, "output location for artifacts")
 	cmd.Flags().StringToStringVarP(&o.Attributes, "attributes", "", o.Attributes, "list of key,value pairs (e.g. key=value) for "+
 		"retrieving artifacts by attributes")
@@ -111,6 +112,7 @@ func (o *PullOptions) run(ctx context.Context, pullFn pullFunc) error {
 	if err != nil {
 		return err
 	}
+
 	o.Logger.Infof("Artifact %s from %s pulled to %s\n", desc.Digest, o.Source, o.Output)
 	return nil
 }
@@ -136,7 +138,7 @@ func withAttributes(ctx context.Context, o PullOptions) (ocispec.Descriptor, err
 		if !ok {
 			continue
 		}
-		attr := ocimanifest.AnnotationsToAttributes(ldesc.Annotations)
+		attr := descriptor.AnnotationsToAttributes(ldesc.Annotations)
 		o.Logger.Debugf("Adding attributes %s for file %s", attr.String(), filename)
 		attributesByFile[filename] = attr
 	}
@@ -257,28 +259,56 @@ func (o *PullOptions) pullCollection(ctx context.Context, output string) (ocispe
 		return desc, layerDescs, err
 	}
 
+	// Resolve source links and all linked collections by BFS.
 	if o.PullAll {
 		o.Logger.Infof("Resolving linked collections for reference %s", o.Source)
+		visitedRefs := map[string]struct{}{o.Source: {}}
 		linkedRefs, err := cache.ResolveLinks(ctx, o.Source)
-		if err != nil {
-			return desc, layerDescs, nil
+		if err := o.checkResolvedLinksError(o.Source, err); err != nil {
+			return desc, layerDescs, err
 		}
-		o.Logger.Debugf("Found references %v", linkedRefs)
-		for _, ref := range linkedRefs {
-			// Not using the descriptor here since it is already
-			// being logged in debug
-			_, err := pullSource(ref)
+
+		for len(linkedRefs) != 0 {
+			currRef := linkedRefs[0]
+			linkedRefs = linkedRefs[1:]
+			if _, ok := visitedRefs[currRef]; ok {
+				continue
+			}
+			visitedRefs[currRef] = struct{}{}
+
+			// No need to log this descriptor digest
+			// since it will be logged when pulled.
+			_, err := pullSource(currRef)
 			if err != nil {
 				return desc, layerDescs, err
 			}
+			o.Logger.Infof("Resolving linked collections for reference %s", currRef)
+			currLinks, err := cache.ResolveLinks(ctx, currRef)
+			if err := o.checkResolvedLinksError(currRef, err); err != nil {
+				return desc, layerDescs, err
+			}
+			linkedRefs = append(linkedRefs, currLinks...)
 		}
 	}
 
 	return desc, layerDescs, nil
 }
 
+// checkResolvedLinksError logs errors when no collection is
+// found.
+func (o *PullOptions) checkResolvedLinksError(ref string, err error) error {
+	if err == nil {
+		return nil
+	}
+	if !errors.Is(err, ocimanifest.ErrNoCollectionLinks) {
+		return err
+	}
+	o.Logger.Infof("No linked collections found for %s", ref)
+	return nil
+}
+
 // mkTempDir will make a temporary dir and return the name
-// and cleanup method
+// and cleanup method.
 func (o *PullOptions) mktempDir(parent string) (func(), string, error) {
 	dir, err := ioutil.TempDir(parent, "collection.*")
 	return func() {

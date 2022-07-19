@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -20,6 +21,8 @@ import (
 	"github.com/uor-framework/client/content"
 	"github.com/uor-framework/client/model"
 	"github.com/uor-framework/client/model/nodes/collection"
+	"github.com/uor-framework/client/model/nodes/descriptor"
+	"github.com/uor-framework/client/model/traversal"
 	"github.com/uor-framework/client/ocimanifest"
 )
 
@@ -39,6 +42,7 @@ type Layout struct {
 	graph    *collection.Collection
 	index    *ocispec.Index
 	rootPath string
+	mu       sync.Mutex
 }
 
 // New initializes a new local file store in an OCI layout format.
@@ -68,7 +72,13 @@ func (l *Layout) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.ReadClo
 
 // Push pushes the content, matching the expected descriptor.
 func (l *Layout) Push(ctx context.Context, desc ocispec.Descriptor, content io.Reader) error {
-	return l.internal.Push(ctx, desc, content)
+	if err := l.internal.Push(ctx, desc, content); err != nil {
+		return err
+	}
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return addManifest(ctx, l.graph, l.internal, desc)
 }
 
 // Exists returns whether a descriptor exits in the file store.
@@ -81,24 +91,42 @@ func (l *Layout) Resolve(ctx context.Context, reference string) (ocispec.Descrip
 	return l.resolver.Resolve(ctx, reference)
 }
 
-// Successors returns the nodes directly pointed by the current node.
-// In other words, returns the "children" of the current descriptor.
-func (l *Layout) Successors(_ context.Context, node ocispec.Descriptor) ([]ocispec.Descriptor, error) {
-	fmt.Println("not implemented")
-	return nil, nil
-}
-
 // Predecessors returns the nodes directly pointing to the current node.
 func (l *Layout) Predecessors(_ context.Context, node ocispec.Descriptor) ([]ocispec.Descriptor, error) {
-	fmt.Println("not implemented")
-	return nil, nil
+	var predecessors []ocispec.Descriptor
+	nodes := l.graph.To(node.Digest.String())
+	for _, n := range nodes {
+		desc, ok := n.(*descriptor.Node)
+		if ok {
+			predecessors = append(predecessors, desc.Descriptor())
+		}
+	}
+	return predecessors, nil
 }
 
 // ResolveByAttribute returns descriptors linked to the reference that satisfy the specified matcher.
 // Matcher is expected to compare attributes of nodes to set criteria.
 func (l *Layout) ResolveByAttribute(ctx context.Context, reference string, matcher model.Matcher) ([]ocispec.Descriptor, error) {
-	fmt.Println("not implemented")
-	return nil, nil
+	var res []ocispec.Descriptor
+	desc, err := l.Resolve(ctx, reference)
+	if err != nil {
+		return nil, err
+	}
+
+	node := l.graph.NodeByID(desc.Digest.String())
+	if node == nil {
+		return nil, fmt.Errorf("node %q does not exist in graph", reference)
+	}
+	err = traversal.Walk(node, l.graph, func(_ traversal.Tracker, n model.Node) error {
+		if matcher.Matches(n) {
+			desc, ok := n.(*descriptor.Node)
+			if ok {
+				res = append(res, desc.Descriptor())
+			}
+		}
+		return nil
+	})
+	return res, err
 }
 
 // ResolveLinks returns linked collection references for a collection. If the collection
@@ -118,10 +146,10 @@ func (l *Layout) ResolveLinks(ctx context.Context, reference string) ([]string, 
 	}
 	links, ok := manifest.Annotations[ocimanifest.AnnotationCollectionLinks]
 	if !ok {
-		return nil, nil
+		return nil, ocimanifest.ErrNoCollectionLinks
 	}
 	splitLinks := strings.Split(links, ocimanifest.Separator)
-	return splitLinks, ocimanifest.ErrNoCollectionLinks
+	return splitLinks, nil
 }
 
 // Tag tags a descriptor with a reference string.
@@ -208,6 +236,12 @@ func (l *Layout) loadIndex(ctx context.Context) error {
 				return err
 			}
 		}
+
+		l.mu.Lock()
+		if err := ManifestToCollection(ctx, l.graph, l.internal, d); err != nil {
+			return err
+		}
+		l.mu.Unlock()
 	}
 
 	return nil

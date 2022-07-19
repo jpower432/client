@@ -20,7 +20,7 @@ func NewResolver() *Resolver {
 }
 
 // Resolve resolves a reference to a descriptor.
-func (r *Resolver) Resolve(ctx context.Context, reference string) (ocispec.Descriptor, error) {
+func (r *Resolver) Resolve(_ context.Context, reference string) (ocispec.Descriptor, error) {
 	desc, ok := r.descriptorLookup.Load(reference)
 	if !ok {
 		return ocispec.Descriptor{}, fmt.Errorf("descriptor for reference %s is not stored", reference)

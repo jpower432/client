@@ -4,21 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"regexp"
 	"strings"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
-	"github.com/uor-framework/client/attributes"
 	"github.com/uor-framework/client/builder/api/v1alpha1"
-	"github.com/uor-framework/client/model"
-	"github.com/uor-framework/client/model/nodes/collection"
 	"github.com/uor-framework/client/registryclient"
 )
 
 const (
-	// AnnotationsSchemaName is the reference to the
+	// AnnotationSchema is the reference to the
 	// default schema of the collection.
 	AnnotationSchema = "uor.schema"
 	// AnnotationSchemaLinks is the reference to linked
@@ -64,9 +60,13 @@ func FetchSchema(ctx context.Context, reference string, client registryclient.Re
 	if !ok {
 		return "", nil, ErrNoKnownSchema
 	}
-	links := []string{manifest.Annotations[AnnotationSchemaLinks]}
 
-	return schema, links, err
+	links, ok := manifest.Annotations[AnnotationSchemaLinks]
+	if !ok {
+		return schema, nil, nil
+	}
+
+	return schema, []string{links}, nil
 }
 
 // UpdateLayerDescriptors updates layers descriptor annotations with user provided key,value pairs
@@ -101,31 +101,4 @@ func UpdateLayerDescriptors(descs []ocispec.Descriptor, cfg v1alpha1.DataSetConf
 	}
 
 	return updateDescs, nil
-}
-
-// AnnotationsToAttributes converts annotations from a descriptors
-// to an Attribute type.
-func AnnotationsToAttributes(annotations map[string]string) model.Attributes {
-	attr := attributes.Attributes{}
-	for key, value := range annotations {
-		curr, exists := attr[key]
-		if !exists {
-			curr = map[string]struct{}{}
-		}
-		curr[value] = struct{}{}
-		attr[key] = curr
-	}
-	return attr
-}
-
-// ManifestToCollection converts a UOR managed OCI manifest to a Collection.
-func ManifestToCollection(_ ocispec.Manifest) (collection.Collection, error) {
-	fmt.Println("not implemented")
-	return collection.Collection{}, nil
-}
-
-// CollectionToManifest converts a Collection to a UOR managed OCI manifest.
-func CollectionToManifest(_ collection.Collection) (ocispec.Manifest, error) {
-	fmt.Println("not implemented")
-	return ocispec.Manifest{}, nil
 }

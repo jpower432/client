@@ -12,7 +12,7 @@ type collectionBuilder struct {
 	edges []model.Edge
 }
 
-// NewBuilder returns a builder for collection nodes.
+// New returns a builder for collection nodes.
 func New(nodes []model.Node, edges []model.Edge) model.NodeBuilder {
 	return &collectionBuilder{
 		nodes: nodes,
