@@ -40,7 +40,7 @@ type PullOptions struct {
 
 var clientPullExamples = templates.Examples(
 	`
-	# Push artifacts
+	# Pull artifacts
 	client pull localhost:5000/myartifacts:latest
 	`,
 )
