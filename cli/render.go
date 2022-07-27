@@ -29,10 +29,10 @@ var clientRenderExamples = templates.Examples(
 	`
 	# Template content in a directory
 	# The default workspace is "client-workspace" in the current working directory.
-	client build my-directory
+	uor-client-go render my-directory
 
 	# Template content into a specified output directory.
-	client build my-directory --output my-workspace
+	uor-client-go render my-directory --output my-workspace
 	`,
 )
 

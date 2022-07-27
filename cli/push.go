@@ -26,7 +26,7 @@ type PushOptions struct {
 var clientPushExamples = templates.Examples(
 	`
 	# Push artifacts
-	client push localhost:5000/myartifacts:latest
+	uor-client-go push localhost:5000/myartifacts:latest
 	`,
 )
 

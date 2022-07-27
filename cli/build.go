@@ -35,7 +35,7 @@ type BuildOptions struct {
 var clientBuildExamples = templates.Examples(
 	`
 	# Build artifact
-	client build my-directory localhost:5000/myartifacts:latest
+	uor-client-go build my-directory localhost:5000/myartifacts:latest
 	`,
 )
 

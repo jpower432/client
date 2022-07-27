@@ -41,7 +41,7 @@ type PullOptions struct {
 var clientPullExamples = templates.Examples(
 	`
 	# Pull artifacts
-	client pull localhost:5000/myartifacts:latest
+	uor-client-go pull localhost:5000/myartifacts:latest
 	`,
 )
 
@@ -246,7 +246,7 @@ func (o *PullOptions) pullCollection(ctx context.Context, output string) (ocispe
 		o.Logger.Debugf("Pulled down %s for reference %s", desc.Digest, source)
 
 		// The cache will be populated by the pull command
-		// Ensure the resource is captured in the index.json, but
+		// Ensure the resource is captured in the index.json by
 		// tagging the reference.
 		if err := cache.Tag(ctx, desc, source); err != nil {
 			return desc, err
