@@ -6,7 +6,7 @@ Design: Node Types
 - [Descriptor Node](#descriptor-node)
 - [Collection Node](#collection-node)
   - [Linked Collection](#linked-collection)
-      - [Why not use the manifest referrers-api?](#why-not-use-the-manifest-referrers-api)
+      - [Why not use the Manifest Referrers API?](#why-not-use-the-manifest-referrers-api)
 
 # Type Requirements
 
@@ -67,7 +67,7 @@ uor.schema.linked
 uor.collections.linked
 ```
 
-#### Why not use the manifest referrers-api?
+#### Why not use the Manifest Referrers API?
 [Info here](https://github.com/oras-project/artifacts-spec/blob/main/manifest-referrers-api.md)
 
 Collections can refer to other collections, but this linkage does not fit into the scope of the referrers API because these

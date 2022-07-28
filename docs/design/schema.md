@@ -1,4 +1,12 @@
-# Schema
+Design: Schema
+===
+- [Design: Schema](#design-schema)
+  - [Schema Elements](#schema-elements)
+    - [Attribute Type Declarations](#attribute-type-declarations)
+    - [Algorithm Reference](#algorithm-reference)
+    - [Default Attribute Mappings](#default-attribute-mappings)
+    - [Default Content Declaration](#default-content-declaration)
+  - [Design](#design)
 
 UOR Schema is the attribute type declaration for a UOR Collection. Schema also links application logic to a importing UOR Collection. Schema can also be used for things like validating a Collection's links and attribute declarations.
 
