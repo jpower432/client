@@ -18,8 +18,8 @@ import (
 	"oras.land/oras-go/v2/errdef"
 
 	"github.com/uor-framework/uor-client-go/content"
-	"github.com/uor-framework/uor-client-go/model/nodes/collection"
-	"github.com/uor-framework/uor-client-go/model/nodes/descriptor"
+	"github.com/uor-framework/uor-client-go/graphs/nodes/collection"
+	"github.com/uor-framework/uor-client-go/graphs/nodes/descriptor"
 	"github.com/uor-framework/uor-client-go/ocimanifest"
 )
 

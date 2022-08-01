@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/uor-framework/uor-client-go/content"
-	"github.com/uor-framework/uor-client-go/model/nodes/collection"
+	"github.com/uor-framework/uor-client-go/graphs/nodes/collection"
 	"github.com/uor-framework/uor-client-go/ocimanifest"
 )
 
@@ -26,11 +26,7 @@ func New(origin string) LinkedCollection {
 func LoadFromStore(ctx context.Context, origin string, store content.GraphStore) (LinkedCollection, error) {
 	visitedRefs := map[string]struct{}{origin: {}}
 	linkedCollection := New(origin)
-
-	linkedRefs, err := store.ResolveLinks(ctx, origin)
-	if err := checkResolvedLinksError(origin, err); err != nil {
-		return linkedCollection, err
-	}
+	linkedRefs := []string{origin}
 
 	for len(linkedRefs) != 0 {
 		currRef := linkedRefs[0]

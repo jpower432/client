@@ -8,9 +8,9 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"oras.land/oras-go/v2/content"
 
+	"github.com/uor-framework/uor-client-go/graphs/nodes/collection"
+	"github.com/uor-framework/uor-client-go/graphs/nodes/descriptor"
 	"github.com/uor-framework/uor-client-go/model"
-	"github.com/uor-framework/uor-client-go/model/nodes/collection"
-	"github.com/uor-framework/uor-client-go/model/nodes/descriptor"
 )
 
 // ManifestToCollection converts a UOR managed OCI manifest to a Collection.

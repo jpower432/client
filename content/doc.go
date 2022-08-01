@@ -13,4 +13,4 @@ limitations under the License.
 
 package content
 
-// This package defines types and methods for storing and retrieving collections.
+// This package defines types and methods for storing and retrieving UOR collections.
