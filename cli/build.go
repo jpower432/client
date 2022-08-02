@@ -176,8 +176,8 @@ func (o *BuildOptions) Run(ctx context.Context) error {
 
 	// Write the root collection attributes
 	manifestAnnotations := map[string]string{}
-	if config.SchemaAddress != "" {
-		manifestAnnotations[ocimanifest.AnnotationSchema] = config.SchemaAddress
+	if config.Schema.Address != "" {
+		manifestAnnotations[ocimanifest.AnnotationSchema] = config.Schema.Address
 	}
 
 	if len(linkedDescs) > 0 {
@@ -236,8 +236,21 @@ func formatLinks(links []string) string {
 	case n == 1:
 		return links[0]
 	case n > 1:
-		return strings.Join(links, ocimanifest.Separator)
+		dedupLinks := deduplicate(links)
+		return strings.Join(dedupLinks, ocimanifest.Separator)
 	default:
 		return ""
 	}
+}
+func deduplicate(in []string) []string {
+	links := map[string]struct{}{}
+	var out []string
+	for _, l := range in {
+		if _, ok := links[l]; ok {
+			continue
+		}
+		links[l] = struct{}{}
+		out = append(out, l)
+	}
+	return out
 }

@@ -67,10 +67,9 @@ type Attributes interface {
 	// Find returns all values associated with a specified key
 	Find(string) []string
 	// String returns a string representation of the
-	// attribute set.
+	// attribute set. To allows for validation with a JSON
+	// schema, this may be represented as a JSON document.
 	String() string
-	// Merge will merge the input Attributes with the receiver.
-	Merge(Attributes)
 	// List will list all key, value pairs for the attributes in a
 	// consumable format.
 	List() map[string][]string

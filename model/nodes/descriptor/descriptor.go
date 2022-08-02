@@ -1,6 +1,8 @@
 package descriptor
 
 import (
+	"encoding/json"
+
 	"github.com/uor-framework/uor-client-go/attributes"
 	"github.com/uor-framework/uor-client-go/model"
 
@@ -49,16 +51,15 @@ func (n *Node) Descriptor() ocispec.Descriptor {
 }
 
 // AnnotationsToAttributes converts annotations from a descriptors
-// to an Attribute type.
+// to an Attribute type. Any value that is not valid JSON will be skipped.
 func AnnotationsToAttributes(annotations map[string]string) model.Attributes {
 	attr := attributes.Attributes{}
 	for key, value := range annotations {
-		curr, exists := attr[key]
-		if !exists {
-			curr = map[string]struct{}{}
+		j, err := json.Marshal(value)
+		if err != nil {
+			continue
 		}
-		curr[value] = struct{}{}
-		attr[key] = curr
+		attr[key] = []byte(j)
 	}
 	return attr
 }

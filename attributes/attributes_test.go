@@ -1,6 +1,7 @@
 package attributes
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -8,13 +9,8 @@ import (
 
 func TestExists(t *testing.T) {
 	attributes := Attributes{
-		"kind": map[string]struct{}{
-			"jpg": {},
-			"txt": {},
-		},
-		"name": map[string]struct{}{
-			"fish.jpg": {},
-		},
+		"kind": json.RawMessage("jpg"),
+		"name": json.RawMessage("fish.jpg"),
 	}
 	require.True(t, attributes.Exists("kind", "jpg"))
 	require.False(t, attributes.Exists("kind", "png"))
@@ -22,30 +18,19 @@ func TestExists(t *testing.T) {
 
 func TestFind(t *testing.T) {
 	attributes := Attributes{
-		"kind": map[string]struct{}{
-			"jpg": {},
-			"txt": {},
-		},
-		"name": map[string]struct{}{
-			"fish.jpg": {},
-		},
+		"kind": json.RawMessage("jpg"),
+		"name": json.RawMessage("fish.jpg"),
 	}
 	result := attributes.Find("kind")
-	require.Len(t, result, 2)
+	require.Len(t, result, 1)
 	require.Contains(t, result, "jpg")
-	require.Contains(t, result, "txt")
 }
 
 func TestAttributes_String(t *testing.T) {
-	expString := `kind=jpg,kind=txt,name=fish.jpg`
+	expString := `"kind": "jpg"`
 	attributes := Attributes{
-		"kind": map[string]struct{}{
-			"jpg": {},
-			"txt": {},
-		},
-		"name": map[string]struct{}{
-			"fish.jpg": {},
-		},
+		"kind": json.RawMessage("\"jpg\""),
+		"name": json.RawMessage("\"fish.jpg\""),
 	}
 	require.Equal(t, expString, attributes.String())
 }

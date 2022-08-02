@@ -1,73 +1,64 @@
 package attributes
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
-	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/uor-framework/uor-client-go/model"
 )
 
-// Attributes implements the model.Attributes interface
-// using a multi-map storing a set of values.
-// The current implementation would allow for aggregation of the attributes
-// of child nodes to the parent nodes.
-type Attributes map[string]map[string]struct{}
+// Attributes implements the model.Attributes interface.
+type Attributes map[string]json.RawMessage
 
 var _ model.Attributes = &Attributes{}
 
 // Find returns all values stored for a specified key.
 func (a Attributes) Find(key string) []string {
-	valSet, exists := a[key]
+	val, exists := a[key]
 	if !exists {
 		return nil
 	}
-	var vals []string
-	for val := range valSet {
-		vals = append(vals, val)
-	}
-	return vals
+	return []string{string(val)}
 }
 
 // Exists returns whether a key,value pair exists in the
 // attribute set.
 func (a Attributes) Exists(key, value string) bool {
-	vals, exists := a[key]
+	val, exists := a[key]
 	if !exists {
 		return false
 	}
-	_, valExists := vals[value]
-	return valExists
+	if value == string(val) {
+		return true
+	}
+	return false
 }
 
-// Strings returns a string representation of the
-// attribute set.
+// Strings returns a JSON formatted string representation of the
+// attribute set. If the values are not valid, an empty string is returned.
 func (a Attributes) String() string {
-	out := new(strings.Builder)
-	keys := make([]string, 0, len(a))
-	for k := range a {
-		keys = append(keys, k)
+	var message []json.RawMessage
+	// TODO (jpower432): need to incorporate key so this becomes
+	// a JSON formatted dictionary.
+	for _, val := range a {
+		message = append(message, val)
 	}
-	sort.Strings(keys)
-	for _, key := range keys {
-		vals := a.List()[key]
-		sort.Strings(vals)
-		for _, val := range vals {
-			line := fmt.Sprintf("%s=%s,", key, val)
-			out.WriteString(line)
-		}
+	merged, err := combine(message)
+	if err != nil {
+		return err.Error()
 	}
-	return strings.TrimSuffix(out.String(), ",")
+	return string(merged)
 }
 
 // List will list all key, value pairs for the attributes in a
 // consumable format.
 func (a Attributes) List() map[string][]string {
 	list := make(map[string][]string, len(a))
-	for key, vals := range a {
-		for val := range vals {
-			list[key] = append(list[key], val)
-		}
+	for key, val := range a {
+		list[key] = append(list[key], string(val))
 	}
 	return list
 }
@@ -77,12 +68,119 @@ func (a Attributes) Len() int {
 	return len(a)
 }
 
-// Merge will merge the input Attributes with the receiver.
-func (a Attributes) Merge(attr model.Attributes) {
-	for key, vals := range attr.List() {
-		for _, val := range vals {
-			sub := a[key]
-			sub[val] = struct{}{}
+// combine will combine json messages into one
+// message.
+func combine(docs []json.RawMessage) (json.RawMessage, error) {
+	if len(docs) == 0 {
+		return []byte{}, nil
+	}
+	prev := docs[0]
+	var err error
+	for i := 1; i < len(docs); i++ {
+		prev, err = mergeBytes(prev, docs[i])
+		if err != nil {
+			return prev, err
+		}
+
+	}
+
+	return prev, nil
+}
+
+func mergeValue(path []string, patch map[string]interface{}, key string, value interface{}) (interface{}, error) {
+	patchValue, patchHasValue := patch[key]
+
+	if !patchHasValue {
+		return value, nil
+	}
+
+	_, patchValueIsObject := patchValue.(map[string]interface{})
+
+	path = append(path, key)
+	pathStr := strings.Join(path, ".")
+
+	if _, ok := value.(map[string]interface{}); ok {
+		if !patchValueIsObject {
+			return value, fmt.Errorf("patch value must be object for key \"%v\"", pathStr)
+		}
+
+		return mergeObjects(value, patchValue, path)
+	}
+
+	if _, ok := value.([]interface{}); ok && patchValueIsObject {
+		return mergeObjects(value, patchValue, path)
+	}
+
+	return patchValue, nil
+}
+
+func mergeObjects(data, patch interface{}, path []string) (interface{}, error) {
+	var err error
+	if patchObject, ok := patch.(map[string]interface{}); ok {
+		if dataArray, ok := data.([]interface{}); ok {
+			ret := make([]interface{}, len(dataArray))
+
+			for i, val := range dataArray {
+				ret[i], err = mergeValue(path, patchObject, strconv.Itoa(i), val)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			return ret, nil
+		} else if dataObject, ok := data.(map[string]interface{}); ok {
+			ret := make(map[string]interface{})
+
+			for k, v := range dataObject {
+				ret[k], err = mergeValue(path, patchObject, k, v)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			return ret, nil
 		}
 	}
+
+	return data, nil
+}
+
+// merge merges patch document to data document
+func merge(data, patch interface{}) (interface{}, error) {
+	return mergeObjects(data, patch, nil)
+}
+
+// mergeBytes merges patch document buffer to data document buffer
+func mergeBytes(dataBuff, patchBuff []byte) (mergedBuff []byte, err error) {
+	var data, patch, merged interface{}
+
+	err = unmarshalJSON(dataBuff, &data)
+	if err != nil {
+		err = fmt.Errorf("error in data JSON: %v", err)
+		return
+	}
+
+	err = unmarshalJSON(patchBuff, &patch)
+	if err != nil {
+		err = fmt.Errorf("error in patch JSON: %v", err)
+		return
+	}
+
+	merged, err = merge(data, patch)
+	if err != nil {
+		return nil, err
+	}
+
+	mergedBuff, err = json.Marshal(merged)
+	if err != nil {
+		err = fmt.Errorf("error writing merged JSON: %v", err)
+	}
+
+	return
+}
+
+func unmarshalJSON(buff []byte, data interface{}) error {
+	decoder := json.NewDecoder(bytes.NewReader(buff))
+	decoder.UseNumber()
+	return decoder.Decode(data)
 }
