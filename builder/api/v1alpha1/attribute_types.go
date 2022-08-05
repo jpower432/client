@@ -1,5 +1,10 @@
 package v1alpha1
 
+import (
+	"encoding/json"
+	"github.com/uor-framework/uor-client-go/model"
+)
+
 // AttributeQueryKind object kind of AttributeQuery
 const AttributeQueryKind = "AttributeQuery"
 
@@ -12,13 +17,37 @@ type AttributeQuery struct {
 }
 
 // Attribute construct a query for an individual attribute.
-// TODO:(jpower432): Determine whether the use JSON syntax to determine type.
 type Attribute struct {
-	Key   string      `mapstructure:"key"`
+	// Key represent the attribute key.
+	Key string `mapstructure:"key"`
+	// Value represent an attribute value.
 	Value interface{} `mapstructure:"value"`
+	// Type is the value type of the attribute.
+	//This is detected and set while unmarshalling the Attribute.
+	Type model.Kind
 }
 
-func (a *Attribute) Validate() error {
-	// TODO:(jpower432): Compare againt model types.
+// UnmarshalJSON unmarshals a quoted json string to the Attribute.
+func (it *Attribute) UnmarshalJSON(b []byte) error {
+	var j interface{}
+	if err := json.Unmarshal(b, &j); err != nil {
+		return err
+	}
+	it.Type = getType(j)
 	return nil
+}
+
+func getType(object interface{}) model.Kind {
+	switch object.(type) {
+	case string:
+		return model.KindString
+	case float64:
+		return model.KindNumber
+	case nil:
+		return model.KindNull
+	case bool:
+		return model.KindBool
+	default:
+		return model.KindInvalid
+	}
 }

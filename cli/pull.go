@@ -45,6 +45,8 @@ var clientPullExamples = examples.Example{
 	CommandString: "pull localhost:5000/myartifacts:latest",
 }
 
+// TODO(jpower432): Update to use attribute query
+
 // NewPullCmd creates a new cobra.Command for the pull subcommand.
 func NewPullCmd(rootOpts *RootOptions) *cobra.Command {
 	o := PullOptions{RootOptions: rootOpts}

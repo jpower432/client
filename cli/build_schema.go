@@ -93,7 +93,12 @@ func (o *BuildSchemaOptions) Run(ctx context.Context) error {
 		return fmt.Errorf("error configuring client: %v", err)
 	}
 
-	descs, err := client.AddFiles(ctx, "", config.JSONSchemaPath)
+	schema, err := config.BuildSchema()
+	if err != nil {
+		return err
+	}
+
+	desc, err := client.AddContent(ctx, ocimanifest.UORSchemaMediaType, schema.Export(), nil)
 	if err != nil {
 		return err
 	}
@@ -104,14 +109,15 @@ func (o *BuildSchemaOptions) Run(ctx context.Context) error {
 		return err
 	}
 
+	// TODO(jpower432): Add mapping and declaration annotations
 	manifestAnnotation := map[string]string{}
-	
-	_, err = client.AddManifest(ctx, o.Destination, configDesc, manifestAnnotation, descs...)
+
+	_, err = client.AddManifest(ctx, o.Destination, configDesc, manifestAnnotation, desc)
 	if err != nil {
 		return err
 	}
 
-	desc, err := client.Save(ctx, o.Destination, cache)
+	desc, err = client.Save(ctx, o.Destination, cache)
 	if err != nil {
 		return fmt.Errorf("client save error for reference %s: %v", o.Destination, err)
 	}

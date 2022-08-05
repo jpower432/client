@@ -11,7 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package schema
 
-// Package v1alpha1 provides the APIs
-// used for constructing UOR Datasets, Schemas, and Attribute Queries.
+// This package defines schema types and methods the correlate to the Attribute data model. Since the Attribute types
+// fit neatly into JSON value categories, the underlying schema being used is a JSON schema.

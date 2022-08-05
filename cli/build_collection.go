@@ -28,6 +28,8 @@ type BuildCollectionOptions struct {
 	BuildConfig string
 }
 
+// TODO(jpower432): Update to pull a validation schema attributes
+
 var clientBuildCollectionExamples = []examples.Example{
 	{
 		RootCommand:   filepath.Base(os.Args[0]),

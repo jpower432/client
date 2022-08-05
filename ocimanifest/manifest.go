@@ -33,6 +33,9 @@ const (
 	// UORConfigMediaType is the manifest config media type
 	// for UOR OCI manifests.
 	UORConfigMediaType = "application/vnd.uor.config.v1+json"
+	// UORSchemaMediaType is the schema media type
+	// for UOR OCI manifests.
+	UORSchemaMediaType = "application/vnd.uor.schema.v1+json"
 )
 
 var (

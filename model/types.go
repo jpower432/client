@@ -75,6 +75,7 @@ type AttributeSet interface {
 	Len() int
 }
 
+// Attribute defines methods of an attribute object.
 type Attribute interface {
 	// Key is the value of the attribute identifier. This must always be a string.
 	Key() string
@@ -92,7 +93,7 @@ type Attribute interface {
 	AsAny() interface{}
 }
 
-// Kind represent the Attribute Kinds
+// Kind represents the kind of Attributes.
 type Kind int
 
 const (
@@ -117,6 +118,6 @@ func (k Kind) String() string {
 	case KindString:
 		return "string"
 	default:
-		panic("invalid enumeration value!")
+		panic("invalid kind")
 	}
 }
