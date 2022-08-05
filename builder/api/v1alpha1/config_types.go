@@ -1,7 +1,5 @@
 package v1alpha1
 
-import "encoding/json"
-
 // DataSetConfigurationKind object kind of DataSetConfiguration.
 const DataSetConfigurationKind = "DataSetConfiguration"
 
@@ -9,24 +7,20 @@ const DataSetConfigurationKind = "DataSetConfiguration"
 type DataSetConfiguration struct {
 	Kind       string `mapstructure:"kind,omitempty"`
 	APIVersion string `mapstructure:"apiVersion,omitempty"`
-	// Files defines custom attributes to add the the files in the
-	// workspaces when publishing content/
-	Files []File `mapstructure:"files,omitempty"`
-	// Schema defines the configuration for the default schema of the collection.
-	Schema Schema `mapstructure:"schema,omitempty"`
+	// Collection configuration spec.
+	Collection Collection `mapstructure:"collection,omitempty"`
 	// LinkedCollections are the remote addresses of collection that are
 	// linked to the collection.
 	LinkedCollections []string `mapstructure:"linkedCollections,omitempty"`
 }
 
-type Schema struct {
-	// Address is the remote location for the default schema of the
-	// collection.
-	Address string `mapstructure:"address,omitempty"`
-	// AttributeTypes is a json formatted doc containing values for attribute types.
-	AttributeTypes             json.RawMessage   `mapstructure:"attributeTypes,omitempty"`
-	DefaultContentDeclarations map[string]string `mapstructure:"defaultContentDeclarations,omitempty"`
-	Algorithm                  string            `mapstructure:"algorithm,omitempty"`
+type Collection struct {
+	// Files defines custom attributes to add the the files in the
+	// workspaces when publishing content/
+	Files []File `mapstructure:"files,omitempty"`
+	// SchemaAddress is the address of the schema to associated
+	// to the Collection.
+	SchemaAddress string `mapstructure:"file,omitempty"`
 }
 
 // File associates attributes with file names.
@@ -35,5 +29,5 @@ type File struct {
 	// for grouping attributes.
 	File string `mapstructure:"file,omitempty"`
 	// Attributes is the lists of to associate to the file.
-	Attributes map[string]string `mapstructure:"attributes,omitempty"`
+	Attributes map[string]interface{} `mapstructure:"attributes,omitempty"`
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/uor-framework/uor-client-go/attributes"
+	"github.com/uor-framework/uor-client-go/attributes/matchers"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -13,7 +15,6 @@ import (
 	"github.com/spf13/cobra"
 	"oras.land/oras-go/v2/content/file"
 
-	"github.com/uor-framework/uor-client-go/attributes"
 	"github.com/uor-framework/uor-client-go/content/layout"
 	"github.com/uor-framework/uor-client-go/model"
 	"github.com/uor-framework/uor-client-go/model/nodes/basic"
@@ -131,14 +132,14 @@ func withAttributes(ctx context.Context, o PullOptions) (ocispec.Descriptor, err
 	}
 
 	// Convert descriptor annotations to type Attribute.
-	attributesByFile := make(map[string]model.Attributes, len(layerDescs))
+	attributesByFile := make(map[string]model.AttributeSet, len(layerDescs))
 	for _, ldesc := range layerDescs {
 		filename, ok := ldesc.Annotations[ocispec.AnnotationTitle]
 		if !ok {
 			continue
 		}
 		attr := descriptor.AnnotationsToAttributes(ldesc.Annotations)
-		o.Logger.Debugf("Adding attributes %s for file %s", attr.String(), filename)
+		o.Logger.Debugf("Adding attributes %s for file %s", attr, filename)
 		attributesByFile[filename] = attr
 	}
 
@@ -177,16 +178,18 @@ func withAttributes(ctx context.Context, o PullOptions) (ocispec.Descriptor, err
 		return ocispec.Descriptor{}, err
 	}
 
-	// Iterator through the collection using an iterator instead
-	// of constructing a tree data structure for now since
-	// we are handling one collection at first.
-	itr := collection.NewByAttributesIterator(nodes)
+	itr := collection.NewInOrderIterator(nodes)
 
-	return desc, o.moveToResults(itr, o.Attributes)
+	matcher := map[string]model.Attribute{}
+	for key, value := range o.Attributes {
+		matcher[key] = attributes.NewString(key, value)
+	}
+
+	return desc, o.moveToResults(itr, matcher)
 }
 
 // moveToResult will iterate through the collection
-func (o *PullOptions) moveToResults(itr model.Iterator, matcher attributes.PartialAttributeMatcher) error {
+func (o *PullOptions) moveToResults(itr model.Iterator, matcher matchers.PartialAttributeMatcher) error {
 	for itr.Next() {
 		node := itr.Node()
 		if matcher.Matches(node) {

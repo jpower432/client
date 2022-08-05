@@ -35,6 +35,6 @@ func (s *Schema) Address() string {
 }
 
 // Attributes represents a collection of data defining the node.
-func (s *Schema) Attributes() model.Attributes {
+func (s *Schema) Attributes() model.AttributeSet {
 	return s.Properties
 }

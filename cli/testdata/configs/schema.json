@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/schema#",
+  "type": "object",
+  "properties": {
+    "Bar": {
+      "type": "string"
+    },
+    "Baz": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "List": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "Value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "Value"
+        ]
+      }
+    },
+    "Qux": {
+      "type": "integer"
+    },
+    "Zoo": {
+      "type": "string"
+    },
+    "foo": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "foo",
+    "Qux",
+    "Baz",
+    "Zoo",
+    "List"
+  ]
+}

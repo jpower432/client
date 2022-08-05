@@ -1,0 +1,3 @@
+kind: SchemaConfiguration
+apiVersion: client.uor-framework.io/v1alpha1
+jsonSchemaPath: testdata/configs/schema.json

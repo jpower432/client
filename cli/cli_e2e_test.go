@@ -28,7 +28,7 @@ func TestCLIE2E(t *testing.T) {
 	type spec struct {
 		name          string
 		pushOpts      *PushOptions
-		buildOpts     *BuildOptions
+		buildOpts     *BuildCollectionOptions
 		pullOpts      *PullOptions
 		expBuildError string
 		expPushError  string
@@ -37,17 +37,19 @@ func TestCLIE2E(t *testing.T) {
 	cases := []spec{
 		{
 			name: "Success/FlatWorkspace",
-			buildOpts: &BuildOptions{
-				RootOptions: &RootOptions{
-					IOStreams: genericclioptions.IOStreams{
-						Out:    os.Stdout,
-						In:     os.Stdin,
-						ErrOut: os.Stderr,
+			buildOpts: &BuildCollectionOptions{
+				BuildOptions: &BuildOptions{
+					RootOptions: &RootOptions{
+						IOStreams: genericclioptions.IOStreams{
+							Out:    os.Stdout,
+							In:     os.Stdin,
+							ErrOut: os.Stderr,
+						},
+						Logger: testlogr,
 					},
-					Logger: testlogr,
+					Destination: fmt.Sprintf("%s/client-flat-test:latest", u.Host),
 				},
-				RootDir:     "testdata/flatworkspace",
-				Destination: fmt.Sprintf("%s/client-flat-test:latest", u.Host),
+				RootDir: "testdata/flatworkspace",
 			},
 			pushOpts: &PushOptions{
 				RootOptions: &RootOptions{
@@ -76,17 +78,19 @@ func TestCLIE2E(t *testing.T) {
 		},
 		{
 			name: "Success/MultiLevelWorkspace",
-			buildOpts: &BuildOptions{
-				RootOptions: &RootOptions{
-					IOStreams: genericclioptions.IOStreams{
-						Out:    os.Stdout,
-						In:     os.Stdin,
-						ErrOut: os.Stderr,
+			buildOpts: &BuildCollectionOptions{
+				BuildOptions: &BuildOptions{
+					RootOptions: &RootOptions{
+						IOStreams: genericclioptions.IOStreams{
+							Out:    os.Stdout,
+							In:     os.Stdin,
+							ErrOut: os.Stderr,
+						},
+						Logger: testlogr,
 					},
-					Logger: testlogr,
+					Destination: fmt.Sprintf("%s/client-multi-test:latest", u.Host),
 				},
-				RootDir:     "testdata/multi-level-workspace",
-				Destination: fmt.Sprintf("%s/client-multi-test:latest", u.Host),
+				RootDir: "testdata/multi-level-workspace",
 			},
 			pushOpts: &PushOptions{
 				RootOptions: &RootOptions{
@@ -115,17 +119,19 @@ func TestCLIE2E(t *testing.T) {
 		},
 		{
 			name: "Success/UORParsing",
-			buildOpts: &BuildOptions{
-				RootOptions: &RootOptions{
-					IOStreams: genericclioptions.IOStreams{
-						Out:    os.Stdout,
-						In:     os.Stdin,
-						ErrOut: os.Stderr,
+			buildOpts: &BuildCollectionOptions{
+				BuildOptions: &BuildOptions{
+					RootOptions: &RootOptions{
+						IOStreams: genericclioptions.IOStreams{
+							Out:    os.Stdout,
+							In:     os.Stdin,
+							ErrOut: os.Stderr,
+						},
+						Logger: testlogr,
 					},
-					Logger: testlogr,
+					Destination: fmt.Sprintf("%s/client-uor-test:latest", u.Host),
 				},
-				RootDir:     "testdata/uor-template",
-				Destination: fmt.Sprintf("%s/client-uor-test:latest", u.Host),
+				RootDir: "testdata/uor-template",
 			},
 			pushOpts: &PushOptions{
 				RootOptions: &RootOptions{

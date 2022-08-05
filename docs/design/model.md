@@ -6,34 +6,11 @@ Design: Model
 - [NodeBuilder](#nodebuilder)
 - [Iterator](#iterator)
 - [Matcher](#matcher)
-- [Attributes](#attributes)
+- [Attribute](#attribute)
+- [AttributeSet](#attributeset)
 
 
 The model package and the sub-package contains all types and methods that can be used to define and work with UOR data.
-
-Package and sub-package layout 
-```
-model/
-├── doc.go
-├── nodes
-│   ├── basic
-│   │   └── basic.go
-│   ├── collection
-│   │   ├── assembly.go
-│   │   ├── builder
-│   │   │   └── builder.go
-│   │   ├── collection.go
-│   │   ├── collection_test.go
-│   │   ├── doc.go
-│   │   ├── edge.go
-│   │   ├── iterator.go
-│   │   └── iterator_test.go
-│   ├── descriptor
-│   │   ├── descriptor.go
-│   │   └── descriptor_test.go
-│   └── doc.go
-└── types.go
-```
 
 > For more information on the concrete node types, see [nodes](nodes.md).
 
@@ -50,8 +27,12 @@ Nodes can be iterable (e.g. a UOR Collection). Using the iterator interface allo
 # Matcher
 Matcher is an interface that defines methods for node searching/matching that can guide Node graph traversal.
 
-# Attributes
+# Attribute 
 
-Attributes is an interface that represents the methods that would be used by a structure containing a set of Node attributes.
+Attribute is an interface that defines a single attribute values with a key that is a type of string and a value that can be a string, boolean, number or null value.
+
+# AttributeSet
+
+AttributeSet is an interface that represents the methods that would be used by a structure containing a set of Node attributes.
 
 
