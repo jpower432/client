@@ -3,14 +3,17 @@ package cli
 import (
 	"context"
 	"fmt"
-	"github.com/uor-framework/uor-client-go/util/examples"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/tabwriter"
+
+	"github.com/uor-framework/uor-client-go/util/examples"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/spf13/cobra"
+
 	"github.com/uor-framework/uor-client-go/attributes"
 	"github.com/uor-framework/uor-client-go/content/layout"
 )
@@ -19,8 +22,9 @@ import (
 // be set when using the inspect subcommand.
 type InspectOptions struct {
 	*RootOptions
-	Source     string
-	Attributes map[string]string
+	Source         string
+	Attributes     map[string]string
+	ShowAttributes bool
 }
 
 var clientInspectExamples = []examples.Example{
@@ -66,6 +70,7 @@ func NewInspectCmd(rootOpts *RootOptions) *cobra.Command {
 
 	cmd.Flags().StringToStringVarP(&o.Attributes, "attributes", "a", o.Attributes, "list of key,value pairs (e.g. key=value) for "+
 		"retrieving artifacts by attributes")
+	cmd.Flags().BoolVar(&o.ShowAttributes, "show-attributes", o.ShowAttributes, "list all attributes")
 	cmd.Flags().StringVarP(&o.Source, "reference", "r", o.Source, "a reference to list descriptors for")
 
 	return cmd
@@ -104,6 +109,10 @@ func (o *InspectOptions) Run(ctx context.Context) error {
 		return err
 	}
 
+	if o.ShowAttributes {
+		return o.formatDescriptorsWithAttributes(o.IOStreams.Out, descs)
+	}
+
 	return o.formatDescriptors(o.IOStreams.Out, descs)
 }
 
@@ -134,4 +143,29 @@ func (o *InspectOptions) formatDescriptors(w io.Writer, descs []ocispec.Descript
 		}
 	}
 	return tw.Flush()
+}
+
+func (o *InspectOptions) formatDescriptorsWithAttributes(w io.Writer, descs []ocispec.Descriptor) error {
+	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
+	if _, err := fmt.Fprintf(tw, "Listing matching descriptors for source:\t%s\n", o.Source); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(tw, "Name\tDigest\tSize\tMediaType\tAttributes"); err != nil {
+		return err
+	}
+	for _, desc := range descs {
+		if _, err := fmt.Fprintf(tw, "%s\t%s\t%d\t%s\t%s\n", desc.Annotations[ocispec.AnnotationTitle], desc.Digest, desc.Size, desc.MediaType, formatAnnotations(desc.Annotations)); err != nil {
+			return err
+		}
+	}
+	return tw.Flush()
+}
+
+func formatAnnotations(annotations map[string]string) string {
+	builder := new(strings.Builder)
+	for k, v := range annotations {
+		s := fmt.Sprintf("%s=%s", k, v)
+		builder.WriteString(s)
+	}
+	return builder.String()
 }
