@@ -84,7 +84,8 @@ func loadConfigFile(path string) (*configfile.ConfigFile, error) {
 		}
 	}
 
-	file, err := os.Open(path)
+	cleanPath := filepath.Clean(path)
+	file, err := os.Open(cleanPath)
 	if err != nil {
 		return nil, err
 	}

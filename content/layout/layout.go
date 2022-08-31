@@ -51,13 +51,13 @@ func New(rootPath string) (*Layout, error) {
 
 // NewWithContext initializes a new local file store in an OCI layout format.
 func NewWithContext(ctx context.Context, rootPath string) (*Layout, error) {
+	cleanRootPath := filepath.Clean(rootPath)
 	l := &Layout{
-		internal: oci.NewStorage(rootPath),
+		internal: oci.NewStorage(cleanRootPath),
 		resolver: sync.Map{},
-		graph:    collection.New(rootPath),
-		rootPath: filepath.Clean(rootPath),
+		graph:    collection.New(cleanRootPath),
+		rootPath: cleanRootPath,
 	}
-
 	return l, l.init(ctx)
 }
 
@@ -253,7 +253,7 @@ func (l *Layout) SaveIndex() error {
 		return err
 	}
 	path := filepath.Join(l.rootPath, indexFile)
-	return ioutil.WriteFile(path, indexJSON, 0640)
+	return ioutil.WriteFile(path, indexJSON, 0600)
 }
 
 // loadIndex loads all information from the index.json
@@ -313,7 +313,7 @@ func (l *Layout) validateOCILayoutFile() error {
 			return fmt.Errorf("failed to marshal OCI layout file: %w", err)
 		}
 
-		return ioutil.WriteFile(layoutFilePath, layoutJSON, 0666)
+		return ioutil.WriteFile(layoutFilePath, layoutJSON, 0600)
 	}
 	defer layoutFile.Close()
 
