@@ -253,11 +253,16 @@ func (o *PullOptions) pullCollections(ctx context.Context, matcher model.Matcher
 
 // copy performs graph traversal of linked collections and performs collection copies filtered by the matcher.
 func (o *PullOptions) copy(ctx context.Context, root model.Node, client registryclient.Remote, matcher model.Matcher) ([]ocispec.Descriptor, error) {
-	seen := map[string]struct{}{}
 	var manifestDesc []ocispec.Descriptor
 
 	tracker := traversal.NewTracker(root, nil)
+	status := traversal.NewStatus()
+
 	handler := traversal.HandlerFunc(func(ctx context.Context, tracker traversal.Tracker, node model.Node) ([]model.Node, error) {
+		_, committed := status.TryCommit(node)
+		if !committed {
+			return nil, traversal.ErrSkip
+		}
 
 		descs, err := o.pullCollection(ctx, node.(*collection.Collection), matcher)
 		if err != nil {
@@ -282,19 +287,17 @@ func (o *PullOptions) copy(ctx context.Context, root model.Node, client registry
 
 		var result []model.Node
 		for _, s := range successors {
-			if _, found := seen[s]; !found {
-				o.Logger.Debugf("found link %s for collection %s", s, node.Address())
-				childNode, err := o.loadFromReference(ctx, s, client)
-				if err != nil {
-					return nil, err
-				}
-				result = append(result, childNode)
+			o.Logger.Debugf("found link %s for collection %s", s, node.Address())
+			childNode, err := o.loadFromReference(ctx, s, client)
+			if err != nil {
+				return nil, err
 			}
+			result = append(result, childNode)
 		}
 		return result, nil
 	})
 
-	if err := tracker.Walk(ctx, handler, root); err != nil {
+	if err := tracker.Dispatch(ctx, handler, nil, root); err != nil {
 		return nil, err
 	}
 

@@ -29,7 +29,6 @@ func (p Path) Add(prev model.Node, curr model.Node) Path {
 	if _, ok := p.index[curr.ID()]; !ok {
 		p.index[curr.ID()] = curr
 	}
-
 	if _, ok := p.index[prev.ID()]; !ok {
 		p.index[prev.ID()] = curr
 	}
@@ -46,7 +45,6 @@ func (p Path) Len() int {
 func (p Path) Prev(n model.Node) model.Node {
 	parentID := p.prev[n.ID()]
 	return p.index[parentID]
-
 }
 
 // List returns a path from the specified end node to

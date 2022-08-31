@@ -125,6 +125,7 @@ func (l *Layout) ResolveByAttribute(ctx context.Context, reference string, match
 	}
 
 	var res []ocispec.Descriptor
+	var resMu sync.Mutex
 	desc, err := l.Resolve(ctx, reference)
 	if err != nil {
 		return nil, err
@@ -136,7 +137,15 @@ func (l *Layout) ResolveByAttribute(ctx context.Context, reference string, match
 	}
 
 	tracker := traversal.NewTracker(root, nil)
+	status := traversal.NewStatus()
+
+	var mu sync.Mutex
 	handler := traversal.HandlerFunc(func(ctx context.Context, tracker traversal.Tracker, node model.Node) ([]model.Node, error) {
+		_, committed := status.TryCommit(node)
+		if !committed {
+			return nil, traversal.ErrSkip
+		}
+
 		match, err := matcher.Matches(node)
 		if err != nil {
 			return nil, err
@@ -152,15 +161,19 @@ func (l *Layout) ResolveByAttribute(ctx context.Context, reference string, match
 					return nil, err
 				}
 				if exists {
+					resMu.Lock()
 					res = append(res, desc.Descriptor())
+					resMu.Unlock()
 				}
 			}
 		}
 
+		mu.Lock()
+		defer mu.Unlock()
 		return l.graph.From(node.ID()), nil
 	})
 
-	if err := tracker.Walk(ctx, handler, root); err != nil {
+	if err := tracker.Dispatch(ctx, handler, nil, root); err != nil {
 		return nil, err
 	}
 
@@ -181,7 +194,15 @@ func (l *Layout) AttributeSchema(ctx context.Context, reference string) (ocispec
 	var res ocispec.Descriptor
 	var stopErr = errors.New("stop")
 	tracker := traversal.NewTracker(root, nil)
+	status := traversal.NewStatus()
+
+	var mu sync.Mutex
 	handler := traversal.HandlerFunc(func(ctx context.Context, tracker traversal.Tracker, node model.Node) ([]model.Node, error) {
+		_, committed := status.TryCommit(node)
+		if !committed {
+			return nil, traversal.ErrSkip
+		}
+
 		desc, ok := node.(*descriptor.Node)
 		if ok {
 			if desc.Descriptor().MediaType == ocimanifest.UORSchemaMediaType {
@@ -189,10 +210,12 @@ func (l *Layout) AttributeSchema(ctx context.Context, reference string) (ocispec
 				return nil, stopErr
 			}
 		}
+		mu.Lock()
+		defer mu.Unlock()
 		return l.graph.From(node.ID()), nil
 	})
 
-	err = tracker.Walk(ctx, handler, root)
+	err = tracker.Dispatch(ctx, handler, nil, root)
 	if err == nil {
 		return ocispec.Descriptor{}, fmt.Errorf("reference %s is not a schema address", reference)
 	}
@@ -304,11 +327,9 @@ func (l *Layout) loadIndex(ctx context.Context) error {
 		fetcherFn := func(ctx context.Context, desc ocispec.Descriptor) ([]byte, error) {
 			return orascontent.FetchAll(ctx, l, desc)
 		}
-		l.mu.Lock()
 		if err := collection.LoadFromManifest(ctx, l.graph, fetcherFn, d); err != nil {
 			return err
 		}
-		l.mu.Unlock()
 	}
 
 	return nil

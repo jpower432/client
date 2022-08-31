@@ -3,6 +3,7 @@ package collection
 import (
 	"context"
 	"encoding/json"
+	"sync"
 
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -26,12 +27,22 @@ func LoadFromManifest(ctx context.Context, graph *Collection, fetcher FetcherFun
 
 	// track content status
 	tracker := traversal.NewTracker(root, nil)
+	status := traversal.NewStatus()
 
+	var mu sync.Mutex
 	handler := traversal.HandlerFunc(func(ctx context.Context, tracker traversal.Tracker, node model.Node) ([]model.Node, error) {
-		// skip the node if it has been indexed
-		if graph.HasNode(node.ID()) {
+		_, committed := status.TryCommit(node)
+		if !committed {
 			return nil, traversal.ErrSkip
 		}
+
+		// skip the node if it has been indexed
+		mu.Lock()
+		if graph.HasNode(node.ID()) {
+			mu.Unlock()
+			return nil, traversal.ErrSkip
+		}
+		mu.Unlock()
 
 		desc, ok := node.(*descriptor.Node)
 		if !ok {
@@ -43,15 +54,16 @@ func LoadFromManifest(ctx context.Context, graph *Collection, fetcher FetcherFun
 			return nil, err
 		}
 
+		mu.Lock()
 		nodes, err := indexNode(graph, desc.Descriptor(), successors)
 		if err != nil {
 			return nil, err
 		}
-
+		mu.Unlock()
 		return nodes, nil
 	})
 
-	return tracker.Walk(ctx, handler, root)
+	return tracker.Dispatch(ctx, handler, nil, root)
 }
 
 // AddManifest will add a single manifest to the Collection.

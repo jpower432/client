@@ -15,8 +15,6 @@ var (
 	_ model.Iterator = &Collection{}
 )
 
-// TODO(jpower432): Determine strategy to make Collections thread-safe (e.g. sync.Map or map + lock, lock-free options)
-
 // Collection is implementation of a model Node represent one OCI artifact
 // stored in memory.
 type Collection struct {
