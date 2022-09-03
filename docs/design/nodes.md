@@ -1,12 +1,15 @@
 Design: Node Types
 ===
+<!--toc-->
 - [Design: Node Types](#design-node-types)
 - [Type Requirements](#type-requirements)
 - [Basic Node](#basic-node)
 - [Descriptor Node](#descriptor-node)
 - [Collection Node](#collection-node)
-  - [Linked Collection](#linked-collection)
-      - [Why not use the manifest referrers-api?](#why-not-use-the-manifest-referrers-api)
+    * [Linked Collection](#linked-collection)
+            * [Why not use the Manifest Referrers API?](#why-not-use-the-manifest-referrers-api)
+
+<!-- tocstop -->
 
 # Type Requirements
 

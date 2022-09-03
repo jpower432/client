@@ -1,5 +1,6 @@
 Design: Model
 ===
+<!--toc-->
 - [Design: Model](#design-model)
 - [Interface types defined in the model package.](#interface-types-defined-in-the-model-package)
 - [Node](#node)
@@ -8,6 +9,8 @@ Design: Model
 - [Matcher](#matcher)
 - [Attribute](#attribute)
 - [AttributeSet](#attributeset)
+
+<!-- tocstop -->
 
 The model package and the sub-package contains all types and methods that can be used to define and work with UOR data.
 
