@@ -5,6 +5,9 @@ Design: Collection Workflow
 - [Collection Publishing](#collection-publishing)
 - [Collection Pulling](#collection-pulling)
 - [Anatomy of a Collection](#anatomy-of-a-collection)
+- [Collection Lookup (Proposed)](#collection-lookup-proposed)
+- [Event Engine Startup (Proposed)](#event-engine-startup-proposed)
+- [Collection Processing (Proposed)](#collection-processing-proposed)
 
 <!-- tocstop -->
 
