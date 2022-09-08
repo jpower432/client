@@ -7,11 +7,11 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
 	"oras.land/oras-go/v2"
-	orascontent "oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/content/file"
 	"oras.land/oras-go/v2/content/memory"
 
 	"github.com/uor-framework/uor-client-go/content"
+	"github.com/uor-framework/uor-client-go/model"
 	"github.com/uor-framework/uor-client-go/registryclient"
 )
 
@@ -21,12 +21,13 @@ type ClientOption func(o *ClientConfig) error
 
 // ClientConfig contains configuration data for the registry client.
 type ClientConfig struct {
-	outputDir string
-	configs   []string
-	plainHTTP bool
-	insecure  bool
-	cache     content.Store
-	copyOpts  oras.CopyOptions
+	outputDir  string
+	configs    []string
+	plainHTTP  bool
+	insecure   bool
+	cache      content.Store
+	copyOpts   oras.CopyOptions
+	attributes model.Matcher
 }
 
 func (c *ClientConfig) apply(options []ClientOption) error {
@@ -64,6 +65,7 @@ func NewClient(options ...ClientOption) (registryclient.Client, error) {
 	client.outputDir = config.outputDir
 	client.destroy = destroy
 	client.cache = config.cache
+	client.attributes = config.attributes
 
 	// We are not allowing this to be configurable since
 	// oras file stores turn artifacts into descriptors in
@@ -126,11 +128,11 @@ func WithPreCopy(preFn func(ctx context.Context, desc ocispec.Descriptor) error)
 	}
 }
 
-// WithSuccessorFn adds a function to find the child node of the current node if exists.
-// This sets the oras.CopyOptions.FindSuccessor function.
-func WithSuccessorFn(successorFn func(ctx context.Context, fetcher orascontent.Fetcher, desc ocispec.Descriptor) ([]ocispec.Descriptor, error)) ClientOption {
+// WithPullableAttributes adds a filter when pulling blob and allows not matching
+// blobs to be skipped.
+func WithPullableAttributes(filter model.Matcher) ClientOption {
 	return func(config *ClientConfig) error {
-		config.copyOpts.FindSuccessors = successorFn
+		config.attributes = filter
 		return nil
 	}
 }

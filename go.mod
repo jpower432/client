@@ -6,6 +6,7 @@ require (
 	github.com/adrg/xdg v0.4.0
 	github.com/docker/cli v20.10.16+incompatible
 	github.com/gabriel-vasile/mimetype v1.4.0
+	github.com/golang/protobuf v1.5.2
 	github.com/google/go-containerregistry v0.10.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/opencontainers/go-digest v1.0.0
@@ -14,11 +15,14 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/afero v1.8.2
 	github.com/spf13/cobra v1.4.0
+	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.1
 	github.com/xeipuuv/gojsonschema v1.2.0
+	google.golang.org/grpc v1.45.0
+	google.golang.org/protobuf v1.28.0
 	k8s.io/cli-runtime v0.24.0
 	k8s.io/kubectl v0.24.0
-	oras.land/oras-go/v2 v2.0.0-rc.2
+	oras.land/oras-go/v2 v2.0.0-rc.3
 	sigs.k8s.io/yaml v1.2.0
 )
 
@@ -38,7 +42,6 @@ require (
 	github.com/go-openapi/jsonreference v0.19.5 // indirect
 	github.com/go-openapi/swag v0.19.14 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/btree v1.0.1 // indirect
 	github.com/google/gnostic v0.5.7-v3refs // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
@@ -65,7 +68,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/russross/blackfriday v1.6.0 // indirect
 	github.com/sergi/go-diff v1.2.0 // indirect
-	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xlab/treeprint v0.0.0-20181112141820-a009c3971eca // indirect
@@ -78,7 +80,7 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/protobuf v1.28.0 // indirect
+	google.golang.org/genproto v0.0.0-20220421151946-72621c1f0bd3 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0 // indirect
