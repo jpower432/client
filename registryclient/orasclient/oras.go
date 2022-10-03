@@ -3,11 +3,9 @@ package orasclient
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"path/filepath"
 	"sort"
 	"sync"
@@ -32,9 +30,8 @@ import (
 )
 
 type orasClient struct {
-	insecure      bool
 	plainHTTP     bool
-	configs       []string
+	authClient    *auth.Client
 	copyOpts      oras.CopyOptions
 	artifactStore *file.Store
 	cache         content.Store
@@ -292,35 +289,8 @@ func (c *orasClient) setupRepo(ref string) (*remote.Repository, error) {
 		return nil, fmt.Errorf("could not create registry target: %w", err)
 	}
 	repo.PlainHTTP = c.plainHTTP
-	authC, err := c.authClient()
-	if err != nil {
-		return nil, err
-	}
-	repo.Client = authC
+	repo.Client = c.authClient
 	return repo, nil
-}
-
-// authClient gather authorization information
-// for registry access from provided and default configuration
-// files.
-func (c *orasClient) authClient() (*auth.Client, error) {
-	client := &auth.Client{
-		Client: &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: c.insecure,
-				},
-			},
-		},
-		Cache: auth.NewCache(),
-	}
-
-	store, err := NewAuthStore(c.configs...)
-	if err != nil {
-		return nil, err
-	}
-	client.Credential = store.Credential
-	return client, nil
 }
 
 // loadFiles stores files in a file store and creates descriptors representing each file in the store.

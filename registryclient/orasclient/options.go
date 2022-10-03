@@ -2,9 +2,12 @@ package orasclient
 
 import (
 	"context"
+	"crypto/tls"
+	"net/http"
 	"sync"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"oras.land/oras-go/v2/registry/remote/auth"
 
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/file"
@@ -23,6 +26,7 @@ type ClientOption func(o *ClientConfig) error
 type ClientConfig struct {
 	outputDir  string
 	configs    []string
+	credFn     func(context.Context, string) (auth.Credential, error)
 	plainHTTP  bool
 	insecure   bool
 	cache      content.Store
@@ -58,8 +62,29 @@ func NewClient(options ...ClientOption) (registryclient.Client, error) {
 		return
 	}
 
-	client.insecure = config.insecure
-	client.configs = config.configs
+	// Setup auth client based on config inputs
+	authClient := &auth.Client{
+		Client: &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: config.insecure,
+				},
+			},
+		},
+		Cache: auth.NewCache(),
+	}
+
+	if config.credFn != nil {
+		authClient.Credential = config.credFn
+	} else {
+		store, err := NewAuthStore(config.configs...)
+		if err != nil {
+			return nil, err
+		}
+		authClient.Credential = store.Credential
+	}
+
+	client.authClient = authClient
 	client.plainHTTP = config.plainHTTP
 	client.copyOpts = config.copyOpts
 	client.outputDir = config.outputDir
@@ -73,6 +98,15 @@ func NewClient(options ...ClientOption) (registryclient.Client, error) {
 	client.artifactStore = file.NewWithFallbackStorage("", memory.New())
 
 	return client, nil
+}
+
+// WithCredentialFunc overrides the default credential function. Using this option will override
+// WithAuthConfigs.
+func WithCredentialFunc(credFn func(context.Context, string) (auth.Credential, error)) ClientOption {
+	return func(config *ClientConfig) error {
+		config.credFn = credFn
+		return nil
+	}
 }
 
 // WithAuthConfigs adds configuration files

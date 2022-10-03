@@ -21,6 +21,7 @@ import (
 type PushOptions struct {
 	*options.Common
 	options.Remote
+	options.RemoteAuth
 	Destination string
 	DSConfig    string
 }
@@ -50,6 +51,7 @@ func NewPushCmd(common *options.Common) *cobra.Command {
 	}
 
 	o.Remote.BindFlags(cmd.Flags())
+	o.RemoteAuth.BindFlags(cmd.Flags())
 
 	return cmd
 }
