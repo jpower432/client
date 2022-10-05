@@ -17,6 +17,7 @@ import (
 	"github.com/uor-framework/uor-client-go/attributes"
 	"github.com/uor-framework/uor-client-go/attributes/matchers"
 	"github.com/uor-framework/uor-client-go/ocimanifest"
+	"github.com/uor-framework/uor-client-go/registryclient"
 )
 
 func TestAddFiles(t *testing.T) {
@@ -111,7 +112,7 @@ func TestPushPull(t *testing.T) {
 
 	ctx := context.TODO()
 
-	t.Run("Success/PushOneImage", func(t *testing.T) {
+	t.Run("Success/PushOneCollection", func(t *testing.T) {
 		cache := memory.New()
 		expDigest := "sha256:98f36e12e9dbacfbb10b9d1f32a46641eb42de588e54cfd7e8627d950ae8140a"
 		c, err := NewClient(WithPlainHTTP(true), WithCache(cache))
@@ -133,7 +134,7 @@ func TestPushPull(t *testing.T) {
 		require.NoError(t, c.Destroy())
 	})
 
-	t.Run("Success/PullOneImage", func(t *testing.T) {
+	t.Run("Success/PullOneCollection", func(t *testing.T) {
 		expDigest := "sha256:98f36e12e9dbacfbb10b9d1f32a46641eb42de588e54cfd7e8627d950ae8140a"
 		c, err := NewClient(WithPlainHTTP(true))
 		require.NoError(t, err)
@@ -144,7 +145,7 @@ func TestPushPull(t *testing.T) {
 		require.NoError(t, c.Destroy())
 	})
 
-	t.Run("Success/FilteredImage", func(t *testing.T) {
+	t.Run("Success/FilteredCollection", func(t *testing.T) {
 		expDigest := ""
 		matcher := matchers.PartialAttributeMatcher{"test": attributes.NewString("test", "fail")}
 		c, err := NewClient(WithPlainHTTP(true), WithPullableAttributes(matcher))
@@ -168,7 +169,7 @@ func TestPushPull(t *testing.T) {
 		require.NoError(t, c.Destroy())
 	})
 
-	t.Run("Success/PushMultipleImages", func(t *testing.T) {
+	t.Run("Success/PushMultipleCollections", func(t *testing.T) {
 		c, err := NewClient(WithPlainHTTP(true))
 		require.NoError(t, err)
 		descs, err := c.AddFiles(ctx, "", testdata)
@@ -189,7 +190,7 @@ func TestPushPull(t *testing.T) {
 		require.NoError(t, c.Destroy())
 	})
 
-	t.Run("Success/PullMultipleImages", func(t *testing.T) {
+	t.Run("Success/PullMultipleCollections", func(t *testing.T) {
 		tmp := t.TempDir()
 		destination := file.New(tmp)
 		c, err := NewClient(WithPlainHTTP(true))
@@ -200,6 +201,83 @@ func TestPushPull(t *testing.T) {
 			_, err = os.Stat(filepath.Join(tmp, testdata))
 			require.NoError(t, err)
 		}
+		require.NoError(t, c.Destroy())
+	})
+
+	t.Run("Success/PushWithRegistryConfig", func(t *testing.T) {
+		cache := memory.New()
+		expDigest := "sha256:98f36e12e9dbacfbb10b9d1f32a46641eb42de588e54cfd7e8627d950ae8140a"
+		config := registryclient.RegistryConfig{
+			Registries: []registryclient.Registry{
+				{
+					Prefix: u.Host,
+					Endpoint: registryclient.Endpoint{
+						PlainHTTP: true,
+						Location:  u.Host,
+					},
+				},
+			},
+		}
+		c, err := NewClient(WithRegistryConfig(config), WithCache(cache))
+		require.NoError(t, err)
+		descs, err := c.AddFiles(ctx, "", testdata)
+		require.NoError(t, err)
+		configDesc, err := c.AddContent(ctx, ocimanifest.UORConfigMediaType, []byte("{}"), nil)
+		require.NoError(t, err)
+
+		mdesc, err := c.AddManifest(ctx, ref, configDesc, nil, descs...)
+		require.NoError(t, err)
+		source, err := c.Store()
+		require.NoError(t, err)
+
+		desc, err := c.Push(context.TODO(), source, ref)
+		require.NoError(t, err)
+		require.Equal(t, mdesc.Digest.String(), desc.Digest.String())
+		require.Equal(t, expDigest, desc.Digest.String())
+		require.NoError(t, c.Destroy())
+	})
+
+	t.Run("Success/PullWithRegistryConfig", func(t *testing.T) {
+		expDigest := "sha256:98f36e12e9dbacfbb10b9d1f32a46641eb42de588e54cfd7e8627d950ae8140a"
+		config := registryclient.RegistryConfig{
+			Registries: []registryclient.Registry{
+				{
+					Prefix: u.Host,
+					Endpoint: registryclient.Endpoint{
+						PlainHTTP: true,
+						Location:  u.Host,
+					},
+				},
+			},
+		}
+		c, err := NewClient(WithRegistryConfig(config))
+		require.NoError(t, err)
+		root, descs, err := c.Pull(context.TODO(), ref, memory.New())
+		require.NoError(t, err)
+		require.Equal(t, expDigest, root.Digest.String())
+		require.Len(t, descs, 4)
+		require.NoError(t, c.Destroy())
+	})
+
+	t.Run("Success/PullWithRegistryConfigNoMatch", func(t *testing.T) {
+		expDigest := "sha256:98f36e12e9dbacfbb10b9d1f32a46641eb42de588e54cfd7e8627d950ae8140a"
+		config := registryclient.RegistryConfig{
+			Registries: []registryclient.Registry{
+				{
+					Prefix: "anotherhost",
+					Endpoint: registryclient.Endpoint{
+						PlainHTTP: false,
+						Location:  "another-host",
+					},
+				},
+			},
+		}
+		c, err := NewClient(WithRegistryConfig(config), WithPlainHTTP(true))
+		require.NoError(t, err)
+		root, descs, err := c.Pull(context.TODO(), ref, memory.New())
+		require.NoError(t, err)
+		require.Equal(t, expDigest, root.Digest.String())
+		require.Len(t, descs, 4)
 		require.NoError(t, c.Destroy())
 	})
 

@@ -105,6 +105,9 @@ func (o *PullOptions) Validate() error {
 }
 
 func (o *PullOptions) Run(ctx context.Context) error {
+	if err := o.Remote.LoadRegistryConfig(); err != nil {
+		return err
+	}
 
 	if !o.NoVerify {
 		o.Logger.Infof("Checking signature of %s", o.Source)
@@ -139,6 +142,7 @@ func (o *PullOptions) Run(ctx context.Context) error {
 		orasclient.WithPlainHTTP(o.PlainHTTP),
 		orasclient.WithCache(cache),
 		orasclient.WithPullableAttributes(matcher),
+		orasclient.WithRegistryConfig(o.RegistryConfig),
 	)
 	if err != nil {
 		return fmt.Errorf("error configuring client: %v", err)

@@ -76,6 +76,10 @@ func (o *PushOptions) Run(ctx context.Context) error {
 		return err
 	}
 
+	// Not adding a registry configuration when pushing since only
+	// one reference us being handled at a time.
+	// QUESTION(jpower432): Could this create a problem? I think it would
+	// be more unexpected to publish collection to declared mirrors.
 	client, err := orasclient.NewClient(
 		orasclient.SkipTLSVerify(o.Insecure),
 		orasclient.WithAuthConfigs(o.Configs),

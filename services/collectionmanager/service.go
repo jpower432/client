@@ -14,6 +14,7 @@ import (
 	"github.com/uor-framework/uor-client-go/config"
 	"github.com/uor-framework/uor-client-go/content"
 	"github.com/uor-framework/uor-client-go/manager"
+	"github.com/uor-framework/uor-client-go/registryclient"
 	"github.com/uor-framework/uor-client-go/registryclient/orasclient"
 	"github.com/uor-framework/uor-client-go/util/workspace"
 )
@@ -29,9 +30,10 @@ type service struct {
 // ServiceOptions configure the collection router service with default remote
 // and collection caching options.
 type ServiceOptions struct {
-	Insecure  bool
-	PlainHTTP bool
-	PullCache content.Store
+	Insecure       bool
+	PlainHTTP      bool
+	PullCache      content.Store
+	RegistryConfig registryclient.RegistryConfig
 }
 
 // FromManager returns a CollectionManager API server from a Manager type.
@@ -49,7 +51,9 @@ func (s *service) PublishContent(ctx context.Context, message *managerapi.Publis
 		orasclient.WithCache(s.options.PullCache),
 		orasclient.WithPlainHTTP(s.options.PlainHTTP),
 		orasclient.WithCredentialFunc(authConf.Credential),
-		orasclient.SkipTLSVerify(s.options.Insecure))
+		orasclient.SkipTLSVerify(s.options.Insecure),
+		orasclient.WithRegistryConfig(s.options.RegistryConfig),
+	)
 	if err != nil {
 		return &managerapi.Publish_Response{}, status.Error(codes.Internal, err.Error())
 	}
@@ -120,6 +124,7 @@ func (s *service) RetrieveContent(ctx context.Context, message *managerapi.Retri
 		orasclient.WithPlainHTTP(s.options.PlainHTTP),
 		orasclient.SkipTLSVerify(s.options.Insecure),
 		orasclient.WithPullableAttributes(matcher),
+		orasclient.WithRegistryConfig(s.options.RegistryConfig),
 	)
 	if err != nil {
 		return &managerapi.Retrieve_Response{}, status.Error(codes.Internal, err.Error())

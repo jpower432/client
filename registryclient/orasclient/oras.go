@@ -3,9 +3,11 @@ package orasclient
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"path/filepath"
 	"sort"
 	"sync"
@@ -32,6 +34,7 @@ import (
 type orasClient struct {
 	plainHTTP     bool
 	authClient    *auth.Client
+	registryConf  registryclient.RegistryConfig
 	copyOpts      oras.CopyOptions
 	artifactStore *file.Store
 	cache         content.Store
@@ -132,11 +135,11 @@ func (c *orasClient) LoadCollection(ctx context.Context, reference string) (coll
 }
 
 // Pull performs a copy of OCI artifacts to a local location from a remote location.
-func (c *orasClient) Pull(ctx context.Context, ref string, store content.Store) (ocispec.Descriptor, []ocispec.Descriptor, error) {
+func (c *orasClient) Pull(ctx context.Context, reference string, store content.Store) (ocispec.Descriptor, []ocispec.Descriptor, error) {
 	var allDescs []ocispec.Descriptor
 
 	var from oras.Target
-	repo, err := c.setupRepo(ref)
+	repo, ref, err := c.setupRepo(ctx, reference)
 	if err != nil {
 		return ocispec.Descriptor{}, allDescs, fmt.Errorf("could not create registry target: %w", err)
 	}
@@ -231,27 +234,27 @@ func (c *orasClient) Pull(ctx context.Context, ref string, store content.Store) 
 }
 
 // Push performs a copy of OCI artifacts to a remote location.
-func (c *orasClient) Push(ctx context.Context, store content.Store, ref string) (ocispec.Descriptor, error) {
-	repo, err := c.setupRepo(ref)
+func (c *orasClient) Push(ctx context.Context, store content.Store, reference string) (ocispec.Descriptor, error) {
+	repo, updatedRef, err := c.setupRepo(ctx, reference)
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("could not create registry target: %w", err)
 	}
 
-	return oras.Copy(ctx, store, ref, repo, ref, c.copyOpts)
+	return oras.Copy(ctx, store, updatedRef, repo, updatedRef, c.copyOpts)
 }
 
 // GetManifest returns the manifest the reference resolves to.
 func (c *orasClient) GetManifest(ctx context.Context, reference string) (ocispec.Descriptor, io.ReadCloser, error) {
-	repo, err := c.setupRepo(reference)
+	repo, updatedRef, err := c.setupRepo(ctx, reference)
 	if err != nil {
 		return ocispec.Descriptor{}, nil, fmt.Errorf("could not create registry target: %w", err)
 	}
-	return repo.FetchReference(ctx, reference)
+	return repo.FetchReference(ctx, updatedRef)
 }
 
 // GetContent retrieves the content for a specified descriptor at a specified reference.
 func (c *orasClient) GetContent(ctx context.Context, reference string, desc ocispec.Descriptor) ([]byte, error) {
-	repo, err := c.setupRepo(reference)
+	repo, _, err := c.setupRepo(ctx, reference)
 	if err != nil {
 		return nil, fmt.Errorf("could not create registry target: %w", err)
 	}
@@ -283,14 +286,90 @@ func (c *orasClient) checkFileStore() error {
 }
 
 // setupRepo configures the client to access the remote repository.
-func (c *orasClient) setupRepo(ref string) (*remote.Repository, error) {
-	repo, err := remote.NewRepository(ref)
+func (c *orasClient) setupRepo(ctx context.Context, reference string) (*remote.Repository, string, error) {
+	reg, err := registryclient.FindRegistry(c.registryConf, reference)
 	if err != nil {
-		return nil, fmt.Errorf("could not create registry target: %w", err)
+		return nil, reference, err
 	}
-	repo.PlainHTTP = c.plainHTTP
-	repo.Client = c.authClient
-	return repo, nil
+
+	repo, err := remote.NewRepository(reference)
+	if err != nil {
+		return nil, reference, fmt.Errorf("could not create registry target: %w", err)
+	}
+
+	// If the incoming reference does not match any registry prefixes,
+	// use the client configuration. If there is a match and the registry
+	// has mirrors configured, try each one before attempting to contact the
+	// input reference (the default).
+	switch {
+	case reg == nil:
+		repo.PlainHTTP = c.plainHTTP
+		repo.Client = c.authClient
+		return repo, reference, nil
+	case len(reg.Mirrors) != 0:
+		repo, ref, err := c.pickMirror(ctx, *reg, reference)
+		if err == nil {
+			return repo, ref, nil
+		}
+
+		var merr *registryclient.ErrNoAvailableMirrors
+		if err != nil && !errors.As(err, &merr) {
+			return nil, reference, err
+		}
+
+		fallthrough
+	default:
+		repo.PlainHTTP = reg.PlainHTTP
+		// FIXME(jpower432): This solution could easily
+		// lead to bugs because the authClient many field that are
+		// pointers or reference types. Come up with something different here.
+		copyAuthClient := *c.authClient
+		copyAuthClient.Client = &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: reg.SkipTLS,
+				},
+			},
+		}
+		repo.Client = &copyAuthClient
+		return repo, reference, nil
+	}
+}
+
+// pickMirror is used if the reference is linked to a registry in the registry configuration that has mirrors. It returns
+// a configured remote.Repository and rewritten reference per the mirror configuration.
+func (c *orasClient) pickMirror(ctx context.Context, reg registryclient.Registry, ref string) (*remote.Repository, string, error) {
+	pullSources, err := reg.PullSourceFromReference(ref)
+	if err != nil {
+		return nil, ref, err
+	}
+	for _, ps := range pullSources {
+		mirror := ps.Endpoint
+		repo, err := remote.NewRepository(ps.Reference)
+		if err != nil {
+			return nil, ref, fmt.Errorf("could not create registry target: %w", err)
+		}
+		repo.PlainHTTP = mirror.PlainHTTP
+		// FIXME(jpower432): This solution could easily
+		// lead to bugs because the authClient many field that are
+		// pointers or reference types. Come up with something different here.
+		copyAuthClient := *c.authClient
+		copyAuthClient.Client = &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: reg.SkipTLS,
+				},
+			},
+		}
+		repo.Client = &copyAuthClient
+
+		// FIXME(jpower432): Resolving work if this is used to publish to a mirror.
+		if _, err := repo.Resolve(ctx, ps.Reference); err == nil {
+			return repo, ps.Reference, nil
+		}
+	}
+
+	return nil, ref, &registryclient.ErrNoAvailableMirrors{Registry: reg.Location}
 }
 
 // loadFiles stores files in a file store and creates descriptors representing each file in the store.

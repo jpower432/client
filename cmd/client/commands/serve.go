@@ -71,6 +71,10 @@ func (o *ServeOptions) Validate() error {
 }
 
 func (o *ServeOptions) Run(ctx context.Context) error {
+	if err := o.Remote.LoadRegistryConfig(); err != nil {
+		return err
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -84,9 +88,10 @@ func (o *ServeOptions) Run(ctx context.Context) error {
 	manager := defaultmanager.New(cache, o.Logger)
 
 	opts := collectionmanager.ServiceOptions{
-		Insecure:  o.Insecure,
-		PlainHTTP: o.PlainHTTP,
-		PullCache: cache,
+		Insecure:       o.Insecure,
+		PlainHTTP:      o.PlainHTTP,
+		PullCache:      cache,
+		RegistryConfig: o.RegistryConfig,
 	}
 	service := collectionmanager.FromManager(manager, opts)
 

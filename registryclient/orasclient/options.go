@@ -24,14 +24,15 @@ type ClientOption func(o *ClientConfig) error
 
 // ClientConfig contains configuration data for the registry client.
 type ClientConfig struct {
-	outputDir  string
-	configs    []string
-	credFn     func(context.Context, string) (auth.Credential, error)
-	plainHTTP  bool
-	insecure   bool
-	cache      content.Store
-	copyOpts   oras.CopyOptions
-	attributes model.Matcher
+	outputDir      string
+	configs        []string
+	credFn         func(context.Context, string) (auth.Credential, error)
+	plainHTTP      bool
+	insecure       bool
+	cache          content.Store
+	copyOpts       oras.CopyOptions
+	attributes     model.Matcher
+	registryConfig registryclient.RegistryConfig
 }
 
 func (c *ClientConfig) apply(options []ClientOption) error {
@@ -91,6 +92,7 @@ func NewClient(options ...ClientOption) (registryclient.Client, error) {
 	client.destroy = destroy
 	client.cache = config.cache
 	client.attributes = config.attributes
+	client.registryConf = config.registryConfig
 
 	// We are not allowing this to be configurable since
 	// oras file stores turn artifacts into descriptors in
@@ -114,6 +116,16 @@ func WithCredentialFunc(credFn func(context.Context, string) (auth.Credential, e
 func WithAuthConfigs(configs []string) ClientOption {
 	return func(config *ClientConfig) error {
 		config.configs = configs
+		return nil
+	}
+}
+
+// WithRegistryConfig defines the configuration for specific registry
+// endpoints. If specified, the configuration for a found registry
+// will override WithSkipTLSVerify and WithPlainHTTP.
+func WithRegistryConfig(registryConf registryclient.RegistryConfig) ClientOption {
+	return func(config *ClientConfig) error {
+		config.registryConfig = registryConf
 		return nil
 	}
 }
