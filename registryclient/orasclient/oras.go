@@ -33,7 +33,9 @@ import (
 
 type orasClient struct {
 	plainHTTP     bool
-	authClient    *auth.Client
+	insecure      bool
+	authCache     auth.Cache
+	credFn        func(context.Context, string) (auth.Credential, error)
 	registryConf  registryclient.RegistryConfig
 	copyOpts      oras.CopyOptions
 	artifactStore *file.Store
@@ -285,6 +287,21 @@ func (c *orasClient) checkFileStore() error {
 	return nil
 }
 
+// authClient configures a new auth client with a given configuration.
+func (c *orasClient) authClient(insecure bool) *auth.Client {
+	return &auth.Client{
+		Client: &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: insecure,
+				},
+			},
+		},
+		Cache:      c.authCache,
+		Credential: c.credFn,
+	}
+}
+
 // setupRepo configures the client to access the remote repository.
 func (c *orasClient) setupRepo(ctx context.Context, reference string) (*remote.Repository, string, error) {
 	reg, err := registryclient.FindRegistry(c.registryConf, reference)
@@ -304,7 +321,7 @@ func (c *orasClient) setupRepo(ctx context.Context, reference string) (*remote.R
 	switch {
 	case reg == nil:
 		repo.PlainHTTP = c.plainHTTP
-		repo.Client = c.authClient
+		repo.Client = c.authClient(c.insecure)
 		return repo, reference, nil
 	case len(reg.Mirrors) != 0:
 		repo, ref, err := c.pickMirror(ctx, *reg, reference)
@@ -320,18 +337,7 @@ func (c *orasClient) setupRepo(ctx context.Context, reference string) (*remote.R
 		fallthrough
 	default:
 		repo.PlainHTTP = reg.PlainHTTP
-		// FIXME(jpower432): This solution could easily
-		// lead to bugs because the authClient many field that are
-		// pointers or reference types. Come up with something different here.
-		copyAuthClient := *c.authClient
-		copyAuthClient.Client = &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: reg.SkipTLS,
-				},
-			},
-		}
-		repo.Client = &copyAuthClient
+		repo.Client = c.authClient(reg.SkipTLS)
 		return repo, reference, nil
 	}
 }
@@ -350,18 +356,7 @@ func (c *orasClient) pickMirror(ctx context.Context, reg registryclient.Registry
 			return nil, ref, fmt.Errorf("could not create registry target: %w", err)
 		}
 		repo.PlainHTTP = mirror.PlainHTTP
-		// FIXME(jpower432): This solution could easily
-		// lead to bugs because the authClient many field that are
-		// pointers or reference types. Come up with something different here.
-		copyAuthClient := *c.authClient
-		copyAuthClient.Client = &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: reg.SkipTLS,
-				},
-			},
-		}
-		repo.Client = &copyAuthClient
+		repo.Client = c.authClient(reg.SkipTLS)
 
 		// FIXME(jpower432): Resolving work if this is used to publish to a mirror.
 		if _, err := repo.Resolve(ctx, ps.Reference); err == nil {

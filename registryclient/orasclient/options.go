@@ -2,8 +2,6 @@ package orasclient
 
 import (
 	"context"
-	"crypto/tls"
-	"net/http"
 	"sync"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -63,36 +61,25 @@ func NewClient(options ...ClientOption) (registryclient.Client, error) {
 		return
 	}
 
-	// Setup auth client based on config inputs
-	authClient := &auth.Client{
-		Client: &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: config.insecure,
-				},
-			},
-		},
-		Cache: auth.NewCache(),
-	}
-
-	if config.credFn != nil {
-		authClient.Credential = config.credFn
-	} else {
-		store, err := NewAuthStore(config.configs...)
-		if err != nil {
-			return nil, err
-		}
-		authClient.Credential = store.Credential
-	}
-
-	client.authClient = authClient
+	client.authCache = auth.NewCache()
 	client.plainHTTP = config.plainHTTP
+	client.insecure = config.insecure
 	client.copyOpts = config.copyOpts
 	client.outputDir = config.outputDir
 	client.destroy = destroy
 	client.cache = config.cache
 	client.attributes = config.attributes
 	client.registryConf = config.registryConfig
+
+	if config.credFn != nil {
+		client.credFn = config.credFn
+	} else {
+		store, err := NewAuthStore(config.configs...)
+		if err != nil {
+			return nil, err
+		}
+		client.credFn = store.Credential
+	}
 
 	// We are not allowing this to be configurable since
 	// oras file stores turn artifacts into descriptors in
