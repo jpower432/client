@@ -18,6 +18,7 @@ import (
 	"oras.land/oras-go/v2"
 	orascontent "oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/content/file"
+	"oras.land/oras-go/v2/registry"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
 
@@ -303,8 +304,8 @@ func (c *orasClient) authClient(insecure bool) *auth.Client {
 }
 
 // setupRepo configures the client to access the remote repository.
-func (c *orasClient) setupRepo(ctx context.Context, reference string) (*remote.Repository, string, error) {
-	reg, err := registryclient.FindRegistry(c.registryConf, reference)
+func (c *orasClient) setupRepo(ctx context.Context, reference string) (registry.Repository, string, error) {
+	registryConfig, err := registryclient.FindRegistry(c.registryConf, reference)
 	if err != nil {
 		return nil, reference, err
 	}
@@ -319,14 +320,14 @@ func (c *orasClient) setupRepo(ctx context.Context, reference string) (*remote.R
 	// has mirrors configured, try each one before attempting to contact the
 	// input reference (the default).
 	switch {
-	case reg == nil:
+	case registryConfig == nil:
 		repo.PlainHTTP = c.plainHTTP
 		repo.Client = c.authClient(c.insecure)
 		return repo, reference, nil
-	case len(reg.Mirrors) != 0:
-		repo, ref, err := c.pickMirror(ctx, *reg, reference)
+	case len(registryConfig.Mirrors) != 0:
+		mirrorRepo, mirrorReference, err := c.pickMirror(ctx, *registryConfig, reference)
 		if err == nil {
-			return repo, ref, nil
+			return mirrorRepo, mirrorReference, nil
 		}
 
 		var merr *registryclient.ErrNoAvailableMirrors
@@ -336,31 +337,39 @@ func (c *orasClient) setupRepo(ctx context.Context, reference string) (*remote.R
 
 		fallthrough
 	default:
-		repo.PlainHTTP = reg.PlainHTTP
-		repo.Client = c.authClient(reg.SkipTLS)
+		repo.PlainHTTP = registryConfig.PlainHTTP
+		repo.Client = c.authClient(registryConfig.SkipTLS)
 		return repo, reference, nil
 	}
 }
 
 // pickMirror is used if the reference is linked to a registry in the registry configuration that has mirrors. It returns
 // a configured remote.Repository and rewritten reference per the mirror configuration.
-func (c *orasClient) pickMirror(ctx context.Context, reg registryclient.Registry, ref string) (*remote.Repository, string, error) {
+func (c *orasClient) pickMirror(ctx context.Context, reg registryclient.Registry, ref string) (registry.Repository, string, error) {
 	pullSources, err := reg.PullSourceFromReference(ref)
 	if err != nil {
 		return nil, ref, err
 	}
+
 	for _, ps := range pullSources {
 		mirror := ps.Endpoint
-		repo, err := remote.NewRepository(ps.Reference)
+		mirrorReg, err := remote.NewRegistry(mirror.Location)
 		if err != nil {
 			return nil, ref, fmt.Errorf("could not create registry target: %w", err)
 		}
-		repo.PlainHTTP = mirror.PlainHTTP
-		repo.Client = c.authClient(reg.SkipTLS)
+		mirrorReg.PlainHTTP = mirror.PlainHTTP
+		mirrorReg.Client = c.authClient(reg.SkipTLS)
 
-		// FIXME(jpower432): Resolving work if this is used to publish to a mirror.
-		if _, err := repo.Resolve(ctx, ps.Reference); err == nil {
-			return repo, ps.Reference, nil
+		if err := mirrorReg.Ping(ctx); err == nil {
+			mirrorReference, err := registry.ParseReference(ps.Reference)
+			if err != nil {
+				return nil, ref, fmt.Errorf("reference %q: %w", mirrorReference, err)
+			}
+			mirrorRepo, err := mirrorReg.Repository(ctx, mirrorReference.Repository)
+			if err != nil {
+				return nil, ref, err
+			}
+			return mirrorRepo, mirrorReference.String(), nil
 		}
 	}
 
