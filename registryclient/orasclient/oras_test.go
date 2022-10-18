@@ -266,7 +266,7 @@ func TestPushPull(t *testing.T) {
 				{
 					Prefix: "test.server.com",
 					Endpoint: registryclient.Endpoint{
-						PlainHTTP: true,
+						PlainHTTP: false,
 						Location:  "test.server.com",
 					},
 					Mirrors: []registryclient.Endpoint{

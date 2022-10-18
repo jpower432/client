@@ -121,20 +121,18 @@ func (c *orasClient) LoadCollection(ctx context.Context, reference string) (coll
 		return value.(collection.Collection), nil
 	}
 
-	desc, _, err := c.GetManifest(ctx, reference)
+	repo, updatedRef, err := c.setupRepo(ctx, reference)
+	if err != nil {
+		return collection.Collection{}, fmt.Errorf("could not create registry target: %w", err)
+	}
+
+	graph, err := loadCollection(ctx, repo, updatedRef)
 	if err != nil {
 		return collection.Collection{}, err
 	}
-	fetcherFn := func(ctx context.Context, desc ocispec.Descriptor) ([]byte, error) {
-		return c.GetContent(ctx, reference, desc)
-	}
-	co := collection.New(reference)
-	if err := collectionloader.LoadFromManifest(ctx, co, fetcherFn, desc); err != nil {
-		return collection.Collection{}, err
-	}
-	co.Location = reference
-	c.collections.Store(reference, *co)
-	return *co, nil
+	c.collections.Store(reference, graph)
+
+	return graph, nil
 }
 
 // Pull performs a copy of OCI artifacts to a local location from a remote location.
@@ -152,9 +150,18 @@ func (c *orasClient) Pull(ctx context.Context, reference string, store content.S
 		from = cache.New(repo, c.cache)
 	}
 
-	graph, err := c.LoadCollection(ctx, reference)
-	if err != nil {
-		return ocispec.Descriptor{}, allDescs, err
+	// Load the collection manifest from remote or
+	// the collection cache
+	var graph collection.Collection
+	value, exists := c.collections.Load(reference)
+	if exists {
+		graph = value.(collection.Collection)
+	} else {
+		graph, err = loadCollection(ctx, repo, updatedRef)
+		if err != nil {
+			return ocispec.Descriptor{}, allDescs, err
+		}
+		c.collections.Store(reference, graph)
 	}
 
 	// Filter the collection per the matcher criteria
@@ -242,7 +249,6 @@ func (c *orasClient) Push(ctx context.Context, store content.Store, reference st
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("could not create registry target: %w", err)
 	}
-
 	return oras.Copy(ctx, store, updatedRef, repo, updatedRef, c.copyOpts)
 }
 
@@ -261,11 +267,7 @@ func (c *orasClient) GetContent(ctx context.Context, reference string, desc ocis
 	if err != nil {
 		return nil, fmt.Errorf("could not create registry target: %w", err)
 	}
-	r, err := repo.Fetch(ctx, desc)
-	if err != nil {
-		return nil, err
-	}
-	return orascontent.ReadAll(r, desc)
+	return getContent(ctx, desc, repo)
 }
 
 // Store returns the source storage being used to store
@@ -416,4 +418,30 @@ func getDefaultMediaType(file string) (string, error) {
 		return "", err
 	}
 	return mType.String(), nil
+}
+
+// loadCollection is a helper function that allows a collection to be loaded with a given repository.
+func loadCollection(ctx context.Context, repo registry.Repository, reference string) (collection.Collection, error) {
+	desc, _, err := repo.FetchReference(ctx, reference)
+	if err != nil {
+		return collection.Collection{}, err
+	}
+	fetcherFn := func(ctx context.Context, desc ocispec.Descriptor) ([]byte, error) {
+		return getContent(ctx, desc, repo)
+	}
+	co := collection.New(reference)
+	if err := collectionloader.LoadFromManifest(ctx, co, fetcherFn, desc); err != nil {
+		return collection.Collection{}, err
+	}
+	co.Location = reference
+	return *co, nil
+}
+
+// getContent is a helper function that allows content to be retrieved with a given repository.
+func getContent(ctx context.Context, desc ocispec.Descriptor, repo registry.Repository) ([]byte, error) {
+	r, err := repo.Fetch(ctx, desc)
+	if err != nil {
+		return nil, err
+	}
+	return orascontent.ReadAll(r, desc)
 }
