@@ -142,7 +142,7 @@ func (c *orasClient) Pull(ctx context.Context, reference string, store content.S
 	var allDescs []ocispec.Descriptor
 
 	var from oras.Target
-	repo, ref, err := c.setupRepo(ctx, reference)
+	repo, updatedRef, err := c.setupRepo(ctx, reference)
 	if err != nil {
 		return ocispec.Descriptor{}, allDescs, fmt.Errorf("could not create registry target: %w", err)
 	}
@@ -152,7 +152,7 @@ func (c *orasClient) Pull(ctx context.Context, reference string, store content.S
 		from = cache.New(repo, c.cache)
 	}
 
-	graph, err := c.LoadCollection(ctx, ref)
+	graph, err := c.LoadCollection(ctx, reference)
 	if err != nil {
 		return ocispec.Descriptor{}, allDescs, err
 	}
@@ -228,7 +228,7 @@ func (c *orasClient) Pull(ctx context.Context, reference string, store content.S
 	cCopyOpts := c.copyOpts
 	cCopyOpts.FindSuccessors = successorFn
 
-	desc, err := oras.Copy(ctx, from, ref, store, ref, cCopyOpts)
+	desc, err := oras.Copy(ctx, from, updatedRef, store, updatedRef, cCopyOpts)
 	if err != nil {
 		return ocispec.Descriptor{}, allDescs, err
 	}
@@ -358,7 +358,7 @@ func (c *orasClient) pickMirror(ctx context.Context, reg registryclient.Registry
 			return nil, ref, fmt.Errorf("could not create registry target: %w", err)
 		}
 		mirrorReg.PlainHTTP = mirror.PlainHTTP
-		mirrorReg.Client = c.authClient(reg.SkipTLS)
+		mirrorReg.Client = c.authClient(mirror.SkipTLS)
 
 		if err := mirrorReg.Ping(ctx); err == nil {
 			mirrorReference, err := registry.ParseReference(ps.Reference)

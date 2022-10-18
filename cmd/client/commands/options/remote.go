@@ -29,7 +29,6 @@ func (o *Remote) LoadRegistryConfig() error {
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("$HOME/.uor")
-	viper.AddConfigPath(".")
 	err := viper.ReadInConfig()
 	if err != nil {
 		var configNotFound viper.ConfigFileNotFoundError

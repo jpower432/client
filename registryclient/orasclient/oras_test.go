@@ -259,6 +259,34 @@ func TestPushPull(t *testing.T) {
 		require.NoError(t, c.Destroy())
 	})
 
+	t.Run("Success/PullWithRegistryConfigMirror", func(t *testing.T) {
+		expDigest := "sha256:98f36e12e9dbacfbb10b9d1f32a46641eb42de588e54cfd7e8627d950ae8140a"
+		config := registryclient.RegistryConfig{
+			Registries: []registryclient.Registry{
+				{
+					Prefix: "test.server.com",
+					Endpoint: registryclient.Endpoint{
+						PlainHTTP: true,
+						Location:  "test.server.com",
+					},
+					Mirrors: []registryclient.Endpoint{
+						{
+							PlainHTTP: true,
+							Location:  u.Host,
+						},
+					},
+				},
+			},
+		}
+		c, err := NewClient(WithRegistryConfig(config))
+		require.NoError(t, err)
+		root, descs, err := c.Pull(context.TODO(), "test.server.com/test:latest", memory.New())
+		require.NoError(t, err)
+		require.Equal(t, expDigest, root.Digest.String())
+		require.Len(t, descs, 4)
+		require.NoError(t, c.Destroy())
+	})
+
 	t.Run("Success/PullWithRegistryConfigNoMatch", func(t *testing.T) {
 		expDigest := "sha256:98f36e12e9dbacfbb10b9d1f32a46641eb42de588e54cfd7e8627d950ae8140a"
 		config := registryclient.RegistryConfig{

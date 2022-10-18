@@ -50,6 +50,26 @@ uor-client-go version
 4. Use the `uor-client-go pull` command to pull the artifact back to a local workspace.
 5. Use the `uor-client-go inspect` command to inspect the build cache to list information about references.
 
+### Registry Config
+
+This registry config can be stored to individually configure each registry. It should be named `registry-config.yaml`.
+The locations this can be stored in are the current working directory and at `$HOME/.uor/registry-config.yaml`. If mirror
+endpoints are configured, a mirrored collection will attempt to be pulled before the user-provided reference.
+
+Example:
+```bash
+registries:
+  - prefix: "localhost*"
+    endpoint:
+      location: "localhost:5000"
+      skipTLS: false
+      plainHTTP: true
+    mirrors:
+      - location: "localhost:5001"
+        plainHTTP: true
+```
+
+
 ### Build a schema into an artifact
 
 A schema can be optionally created prior to building a collection. Collections can then reference an already built schema or no schema at all.

@@ -78,7 +78,6 @@ func (r *Registry) PullSourceFromReference(ref string) ([]PullSource, error) {
 // registry endpoints.
 type RegistryConfig struct {
 	Registries []Registry `json:"registries"`
-	//AttributeSearchDomain []string
 }
 
 // FindRegistry returns the registry from the registry config that
