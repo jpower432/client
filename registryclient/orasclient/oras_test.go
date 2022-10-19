@@ -313,7 +313,7 @@ func TestPushPull(t *testing.T) {
 		c, err := NewClient(WithPlainHTTP(true))
 		require.NoError(t, err)
 		_, _, err = c.Pull(context.TODO(), notExistRef, memory.New())
-		require.EqualError(t, err, fmt.Sprintf("%s: not found", notExistTag))
+		require.EqualError(t, err, fmt.Sprintf("%s: not found", notExistRef))
 		require.NoError(t, c.Destroy())
 	})
 }

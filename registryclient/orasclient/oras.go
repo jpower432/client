@@ -422,7 +422,7 @@ func getDefaultMediaType(file string) (string, error) {
 
 // loadCollection is a helper function that allows a collection to be loaded with a given repository.
 func loadCollection(ctx context.Context, repo registry.Repository, reference string) (collection.Collection, error) {
-	desc, _, err := repo.FetchReference(ctx, reference)
+	desc, err := repo.Resolve(ctx, reference)
 	if err != nil {
 		return collection.Collection{}, err
 	}
