@@ -53,20 +53,16 @@ uor-client-go version
 ### Registry Config
 
 This registry config can be stored to individually configure each registry. It should be named `registry-config.yaml`.
-The locations this can be stored in are the current working directory and at `$HOME/.uor/registry-config.yaml`. If mirror
-endpoints are configured, a mirrored collection will attempt to be pulled before the user-provided reference.
+The locations this can be stored in are the current working directory and at `$HOME/.uor/registry-config.yaml`.
+As a special case, the prefix field can be missing; if so, it defaults to the value of the location field.
 
 Example:
 ```bash
 registries:
-  - prefix: "localhost*"
-    endpoint:
-      location: "localhost:5000"
-      skipTLS: false
-      plainHTTP: true
-    mirrors:
-      - location: "localhost:5001"
-        plainHTTP: true
+  - prefix: "localhost:5001/test"
+    location: localhost:5001
+    skipTLS: false
+    plainHTTP: true
 ```
 
 

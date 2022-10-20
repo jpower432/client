@@ -93,7 +93,10 @@ func (o *ServeOptions) Run(ctx context.Context) error {
 		PullCache:      cache,
 		RegistryConfig: o.RegistryConfig,
 	}
-	service := collectionmanager.FromManager(manager, opts)
+	service, err := collectionmanager.FromManager(manager, opts)
+	if err != nil {
+		return err
+	}
 
 	// Register the service with the gRPC server
 	managerapi.RegisterCollectionManagerServer(rpc, service)

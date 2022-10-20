@@ -3,7 +3,6 @@ package options
 import (
 	"errors"
 
-	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
@@ -37,11 +36,8 @@ func (o *Remote) LoadRegistryConfig() error {
 		}
 		return err
 	}
-	option := viper.DecoderConfigOption(func(config *mapstructure.DecoderConfig) {
-		config.TagName = "json"
-	})
 
-	return viper.Unmarshal(&o.RegistryConfig, option)
+	return viper.Unmarshal(&o.RegistryConfig)
 }
 
 // RemoteAuth describes remote authentication configuration options that can be set.

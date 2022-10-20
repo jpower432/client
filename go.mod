@@ -26,7 +26,6 @@ require (
 )
 
 require (
-	github.com/mitchellh/mapstructure v1.5.0
 	github.com/sigstore/cosign v1.12.1
 	github.com/spf13/viper v1.13.0
 )
@@ -178,6 +177,7 @@ require (
 	github.com/miekg/pkcs11 v1.1.1 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.0 // indirect
+	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/moby/spdystream v0.2.0 // indirect
 	github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect

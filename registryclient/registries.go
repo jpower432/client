@@ -1,11 +1,8 @@
 package registryclient
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
-
-	"oras.land/oras-go/v2/errdef"
 )
 
 // This configuration is slightly modified and paired down version of the registries.conf.
@@ -19,65 +16,26 @@ import (
 // Endpoint describes a remote location of a registry.
 type Endpoint struct {
 	// The endpoint's remote location.
-	Location string `json:"location"`
+	Location string `mapstructure:"location" json:"location"`
 	// If true, certs verification will be skipped.
-	SkipTLS bool `json:"skipTLS"`
+	SkipTLS bool `mapstructure:"skipTLS" json:"skipTLS"`
 	// If true, the client will use HTTP to
 	// connect to the registry.
-	PlainHTTP bool `json:"plainHTTP"`
-}
-
-// RewriteReference returns a reference for the endpoint given the original
-// reference and registry prefix.
-func (e Endpoint) RewriteReference(reference string) (string, error) {
-	if e.Location == "" {
-		return reference, nil
-	}
-
-	parts := strings.SplitN(reference, "/", 2)
-	if len(parts) == 1 {
-		return " ", fmt.Errorf("%w: missing repository", errdef.ErrInvalidReference)
-	}
-	path := parts[1]
-	return fmt.Sprintf("%s/%s", e.Location, path), nil
-}
-
-// PullSource is a reference that is associated with a
-// specific endpoint. This is used to generate references
-// for registry mirrors and correlate them the mirror endpoint
-type PullSource struct {
-	Reference string
-	Endpoint
+	PlainHTTP bool `mapstructure:"plainHTTP" json:"plainHTTP"`
 }
 
 // Registry represents a registry.
 type Registry struct {
 	// Prefix is used for endpoint matching.
-	Prefix string `json:"prefix"`
+	Prefix string `mapstructure:"prefix" json:"prefix"`
 	// A registry is an Endpoint too
-	Endpoint `json:"endpoint"`
-	// The registry mirrors
-	Mirrors []Endpoint `json:"mirrors,omitempty"`
-}
-
-// PullSourceFromReference returns all pull source for the registry mirrors from
-// a given reference.
-func (r *Registry) PullSourceFromReference(ref string) ([]PullSource, error) {
-	var sources []PullSource
-	for _, mirror := range r.Mirrors {
-		rewritten, err := mirror.RewriteReference(ref)
-		if err != nil {
-			return nil, err
-		}
-		sources = append(sources, PullSource{Endpoint: mirror, Reference: rewritten})
-	}
-	return sources, nil
+	Endpoint `mapstructure:",squash" json:",inline"`
 }
 
 // RegistryConfig is a configuration to configure multiple
 // registry endpoints.
 type RegistryConfig struct {
-	Registries []Registry `json:"registries"`
+	Registries []Registry `mapstructure:"registries" json:"registries"`
 }
 
 // FindRegistry returns the registry from the registry config that
@@ -87,14 +45,18 @@ func FindRegistry(registryConfig RegistryConfig, ref string) (*Registry, error) 
 	prefixLen := 0
 
 	for _, r := range registryConfig.Registries {
-		prefixExp, err := regexp.Compile(validPrefix(r.Prefix))
+		match := r.Prefix
+		if match == "" {
+			match = r.Location
+		}
+		prefixExp, err := regexp.Compile(validPrefix(match))
 		if err != nil {
 			return nil, err
 		}
 		if prefixExp.MatchString(ref) {
-			if len(r.Prefix) > prefixLen {
+			if len(match) > prefixLen {
 				reg = r
-				prefixLen = len(r.Prefix)
+				prefixLen = len(match)
 			}
 		}
 	}
