@@ -13,6 +13,7 @@ import (
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
 	"oras.land/oras-go/v2"
 	orascontent "oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/content/file"
@@ -23,8 +24,7 @@ import (
 	"github.com/uor-framework/uor-client-go/model"
 	"github.com/uor-framework/uor-client-go/nodes/collection"
 	collectionloader "github.com/uor-framework/uor-client-go/nodes/collection/loader"
-	"github.com/uor-framework/uor-client-go/nodes/descriptor"
-	"github.com/uor-framework/uor-client-go/ocimanifest"
+	"github.com/uor-framework/uor-client-go/nodes/descriptor/v2"
 	"github.com/uor-framework/uor-client-go/registryclient"
 	"github.com/uor-framework/uor-client-go/registryclient/orasclient/internal/cache"
 )
@@ -97,11 +97,10 @@ func (c *orasClient) AddManifest(ctx context.Context, ref string, configDesc oci
 		return descriptors[i].Digest < descriptors[j].Digest
 	})
 
-	var packOpts oras.PackOptions
-	packOpts.ConfigDescriptor = &configDesc
+	var packOpts PackOptions
 	packOpts.ManifestAnnotations = manifestAnnotations
 
-	manifestDesc, err := oras.Pack(ctx, c.artifactStore, descriptors, packOpts)
+	manifestDesc, err := Pack(ctx, c.artifactStore, "", descriptors, packOpts)
 	if err != nil {
 		return ocispec.Descriptor{}, err
 	}
@@ -175,17 +174,17 @@ func (c *orasClient) Pull(ctx context.Context, ref string, store content.Store) 
 
 			// Check that this is a descriptor node and the blob is
 			// not a config or schema resource.
-			desc, ok := node.(*descriptor.Node)
+			desc, ok := node.(*v2.Node)
 			if !ok {
 				return false, nil
 			}
 
 			switch desc.Descriptor().MediaType {
-			case ocimanifest.UORSchemaMediaType:
+			case uorspec.MediaTypeSchemaDescriptor:
 				return true, nil
 			case ocispec.MediaTypeImageConfig:
 				return true, nil
-			case ocimanifest.UORConfigMediaType:
+			case uorspec.MediaTypeConfiguration:
 				return true, nil
 			}
 
@@ -221,7 +220,7 @@ func (c *orasClient) Pull(ctx context.Context, ref string, store content.Store) 
 
 		var result []ocispec.Descriptor
 		for _, s := range successors {
-			d, ok := s.(*descriptor.Node)
+			d, ok := s.(*v2.Node)
 			if ok {
 				result = append(result, d.Descriptor())
 			}

@@ -12,12 +12,12 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/registry"
 	"github.com/stretchr/testify/require"
+	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
 	"oras.land/oras-go/v2/content/file"
 	"oras.land/oras-go/v2/content/memory"
 
 	"github.com/uor-framework/uor-client-go/attributes"
 	"github.com/uor-framework/uor-client-go/attributes/matchers"
-	"github.com/uor-framework/uor-client-go/ocimanifest"
 )
 
 func TestAddFiles(t *testing.T) {
@@ -49,13 +49,13 @@ func TestAddContent(t *testing.T) {
 func TestAddManifest(t *testing.T) {
 	t.Run("Success/OneArtifact", func(t *testing.T) {
 		ctx := context.TODO()
-		expDigest := "sha256:98f36e12e9dbacfbb10b9d1f32a46641eb42de588e54cfd7e8627d950ae8140a"
+		expDigest := "sha256:2122416ba42234734487bc9820339a6f6bb3214da8e1c6b3e9b269dfc070979e"
 		testdata := filepath.Join("testdata", "workspace", "fish.jpg")
 		c, err := NewClient(WithPlainHTTP(true))
 		require.NoError(t, err)
 		desc, err := c.AddFiles(ctx, "", testdata)
 		require.NoError(t, err)
-		configDesc, err := c.AddContent(ctx, ocimanifest.UORConfigMediaType, []byte("{}"), nil)
+		configDesc, err := c.AddContent(ctx, uorspec.MediaTypeConfiguration, []byte("{}"), nil)
 		require.NoError(t, err)
 		mdesc, err := c.AddManifest(ctx, "localhost:5000/test:latest", configDesc, nil, desc...)
 		require.NoError(t, err)
@@ -74,13 +74,13 @@ func TestSave(t *testing.T) {
 
 	ctx := context.TODO()
 
-	t.Run("Success/PushOneImage", func(t *testing.T) {
-		expDigest := "sha256:98f36e12e9dbacfbb10b9d1f32a46641eb42de588e54cfd7e8627d950ae8140a"
+	t.Run("Success/SaveOneCollection", func(t *testing.T) {
+		expDigest := "sha256:2122416ba42234734487bc9820339a6f6bb3214da8e1c6b3e9b269dfc070979e"
 		c, err := NewClient(WithPlainHTTP(true))
 		require.NoError(t, err)
 		descs, err := c.AddFiles(ctx, "", testdata)
 		require.NoError(t, err)
-		configDesc, err := c.AddContent(ctx, ocimanifest.UORConfigMediaType, []byte("{}"), nil)
+		configDesc, err := c.AddContent(ctx, uorspec.MediaTypeConfiguration, []byte("{}"), nil)
 		require.NoError(t, err)
 
 		mdesc, err := c.AddManifest(ctx, ref, configDesc, nil, descs...)
@@ -95,6 +95,9 @@ func TestSave(t *testing.T) {
 		desc, err = memStore.Resolve(ctx, ref)
 		require.NoError(t, err)
 		require.Equal(t, expDigest, desc.Digest.String())
+		desc, err = memStore.Resolve(ctx, ref)
+		require.NoError(t, err)
+		require.Equal(t, expDigest, desc.Digest.String())
 	})
 }
 
@@ -104,7 +107,7 @@ func TestPushPull(t *testing.T) {
 	u, err := url.Parse(server.URL)
 	require.NoError(t, err)
 
-	ref := fmt.Sprintf("%s/test:latest", u.Host)
+	ref := fmt.Sprintf("%s/mytest:latest", u.Host)
 	notExistTag := "latest"
 	notExistRef := fmt.Sprintf("%s/notexist:%s", u.Host, notExistTag)
 	images := []string{fmt.Sprintf("%s/test:latest", u.Host), fmt.Sprintf("%s/test2:latest", u.Host)}
@@ -114,12 +117,12 @@ func TestPushPull(t *testing.T) {
 
 	t.Run("Success/PushOneCollection", func(t *testing.T) {
 		cache := memory.New()
-		expDigest := "sha256:98f36e12e9dbacfbb10b9d1f32a46641eb42de588e54cfd7e8627d950ae8140a"
+		expDigest := "sha256:2122416ba42234734487bc9820339a6f6bb3214da8e1c6b3e9b269dfc070979e"
 		c, err := NewClient(WithPlainHTTP(true), WithCache(cache))
 		require.NoError(t, err)
 		descs, err := c.AddFiles(ctx, "", testdata)
 		require.NoError(t, err)
-		configDesc, err := c.AddContent(ctx, ocimanifest.UORConfigMediaType, []byte("{}"), nil)
+		configDesc, err := c.AddContent(ctx, uorspec.MediaTypeConfiguration, []byte("{}"), nil)
 		require.NoError(t, err)
 
 		mdesc, err := c.AddManifest(ctx, ref, configDesc, nil, descs...)
@@ -135,18 +138,18 @@ func TestPushPull(t *testing.T) {
 	})
 
 	t.Run("Success/PullOneCollection", func(t *testing.T) {
-		expDigest := "sha256:98f36e12e9dbacfbb10b9d1f32a46641eb42de588e54cfd7e8627d950ae8140a"
+		expDigest := "sha256:2122416ba42234734487bc9820339a6f6bb3214da8e1c6b3e9b269dfc070979e"
 		c, err := NewClient(WithPlainHTTP(true))
 		require.NoError(t, err)
 		root, descs, err := c.Pull(context.TODO(), ref, memory.New())
 		require.NoError(t, err)
 		require.Equal(t, expDigest, root.Digest.String())
-		require.Len(t, descs, 4)
+		require.Len(t, descs, 3)
 		require.NoError(t, c.Destroy())
 	})
 
 	t.Run("Success/PullWithPrePull", func(t *testing.T) {
-		expDigest := "sha256:98f36e12e9dbacfbb10b9d1f32a46641eb42de588e54cfd7e8627d950ae8140a"
+		expDigest := "sha256:2122416ba42234734487bc9820339a6f6bb3214da8e1c6b3e9b269dfc070979e"
 		var testRef []string
 		prePullFn := func(ctx context.Context, reference string) error {
 			testRef = append(testRef, reference)
@@ -157,7 +160,7 @@ func TestPushPull(t *testing.T) {
 		root, descs, err := c.Pull(context.TODO(), ref, memory.New())
 		require.NoError(t, err)
 		require.Equal(t, expDigest, root.Digest.String())
-		require.Len(t, descs, 4)
+		require.Len(t, descs, 3)
 		require.Equal(t, []string{ref}, testRef)
 		require.NoError(t, c.Destroy())
 	})
@@ -175,14 +178,14 @@ func TestPushPull(t *testing.T) {
 	})
 
 	t.Run("Success/PullWithCache", func(t *testing.T) {
-		expDigest := "sha256:98f36e12e9dbacfbb10b9d1f32a46641eb42de588e54cfd7e8627d950ae8140a"
+		expDigest := "sha256:2122416ba42234734487bc9820339a6f6bb3214da8e1c6b3e9b269dfc070979e"
 		cache := memory.New()
 		c, err := NewClient(WithPlainHTTP(true), WithCache(cache))
 		require.NoError(t, err)
 		root, descs, err := c.Pull(context.TODO(), ref, memory.New())
 		require.NoError(t, err)
 		require.Equal(t, expDigest, root.Digest.String())
-		require.Len(t, descs, 3)
+		require.Len(t, descs, 2)
 		require.NoError(t, c.Destroy())
 	})
 
@@ -191,7 +194,7 @@ func TestPushPull(t *testing.T) {
 		require.NoError(t, err)
 		descs, err := c.AddFiles(ctx, "", testdata)
 		require.NoError(t, err)
-		configDesc, err := c.AddContent(ctx, ocimanifest.UORConfigMediaType, []byte("{}"), nil)
+		configDesc, err := c.AddContent(ctx, uorspec.MediaTypeConfiguration, []byte("{}"), nil)
 		require.NoError(t, err)
 
 		source, err := c.Store()
@@ -221,11 +224,11 @@ func TestPushPull(t *testing.T) {
 		require.NoError(t, c.Destroy())
 	})
 
-	t.Run("Failure/ImageDoesNotExist", func(t *testing.T) {
+	t.Run("Failure/CollectionDoesNotExist", func(t *testing.T) {
 		c, err := NewClient(WithPlainHTTP(true))
 		require.NoError(t, err)
 		_, _, err = c.Pull(context.TODO(), notExistRef, memory.New())
-		require.EqualError(t, err, fmt.Sprintf("%s: not found", notExistTag))
+		require.EqualError(t, err, fmt.Sprintf("%s: not found", notExistRef))
 		require.NoError(t, c.Destroy())
 	})
 

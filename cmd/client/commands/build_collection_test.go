@@ -14,6 +14,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/registry"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/require"
+	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/memory"
@@ -21,7 +22,7 @@ import (
 
 	"github.com/uor-framework/uor-client-go/cmd/client/commands/options"
 	"github.com/uor-framework/uor-client-go/log"
-	"github.com/uor-framework/uor-client-go/ocimanifest"
+	"github.com/uor-framework/uor-client-go/nodes/descriptor"
 )
 
 func TestBuildCollectionComplete(t *testing.T) {
@@ -315,14 +316,14 @@ func prepCollectionArtifacts(t *testing.T, host string) map[string]string {
 	fileContent := []byte("Hello World!\n")
 	testCollection := fmt.Sprintf("%s/test:latest", host)
 	testCollectionAnnotations := map[string]string{
-		ocimanifest.AnnotationSchema: "test.com/schema:latest",
+		descriptor.AnnotationSchema: "test.com/schema:latest",
 	}
 	publishFunc(fileName, testCollection, ocispec.MediaTypeImageLayer, fileContent, map[string]string{"test": "annotation"}, testCollectionAnnotations)
 
 	schemaName := "schema"
 	schemaContent := []byte("{\"type\":\"object\",\"properties\":{\"test\":{\"type\": \"string\"}},\"required\":[\"test\"]}")
 	schemaRef := fmt.Sprintf("%s/schema-test:latest", host)
-	publishFunc(schemaName, schemaRef, ocimanifest.UORSchemaMediaType, schemaContent, nil, nil)
+	publishFunc(schemaName, schemaRef, uorspec.MediaTypeSchemaDescriptor, schemaContent, nil, nil)
 
 	return map[string]string{
 		"linkedCollection": testCollection,

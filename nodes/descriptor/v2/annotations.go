@@ -1,8 +1,7 @@
-package ocimanifest
+package v2
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -11,42 +10,7 @@ import (
 
 	"github.com/uor-framework/uor-client-go/attributes"
 	"github.com/uor-framework/uor-client-go/model"
-)
-
-const (
-	// AnnotationSchema is the reference to the
-	// default schema of the collection.
-	AnnotationSchema = "uor.schema"
-	// AnnotationSchemaLinks is the reference to linked
-	// schemas for a collection. This will define all referenced
-	// schemas for the collection and sub-collection. The tree will
-	// be fully resolved.
-	AnnotationSchemaLinks = "uor.schema.linked"
-	// AnnotationCollectionLinks references the collections
-	// that are linked to a collection node. They will only
-	// reference adjacent collection and will not descend
-	// into sub-collections.
-	AnnotationCollectionLinks = "uor.collections.linked"
-	// AnnotationUORAttributes references the collection attributes in a
-	// JSON format.
-	AnnotationUORAttributes = "uor.attributes"
-	// Separator is the value used to denote a list of
-	// schema or collection in a manifest.
-	Separator = ","
-	// UORConfigMediaType is the manifest config media type
-	// for UOR OCI manifests.
-	UORConfigMediaType = "application/vnd.uor.config.v1+json"
-	// UORSchemaMediaType is the media type for a UOR schema.
-	UORSchemaMediaType = "application/vnd.uor.schema.v1+json"
-)
-
-var (
-	// ErrNoKnownSchema denotes that no schema
-	// annotation is set on the manifest.
-	ErrNoKnownSchema = errors.New("no schema")
-	// ErrNoCollectionLinks denotes that the manifest
-	// does contain annotation that set collection links.
-	ErrNoCollectionLinks = errors.New("no collection links")
+	"github.com/uor-framework/uor-client-go/nodes/descriptor"
 )
 
 // AnnotationsToAttributeSet converts annotations from descriptors
@@ -62,7 +26,6 @@ func AnnotationsToAttributeSet(annotations map[string]string, skip func(string) 
 		// Handle key collision. This should only occur if
 		// an annotation is set and the key also exists in the UOR
 		// specific attributes.
-		// TODO(jpower432): Handle more gracefully.
 		if _, exists := set[key]; exists {
 			continue
 		}
@@ -70,7 +33,7 @@ func AnnotationsToAttributeSet(annotations map[string]string, skip func(string) 
 		// Since annotations are in the form of map[string]string, we
 		// can just assume it is a string attribute at this point. Incorporating
 		// this into thr attribute set allows, users to pull by filename or reference name (cache).
-		if key != AnnotationUORAttributes {
+		if key != descriptor.AnnotationUORAttributes {
 			set[key] = attributes.NewString(key, value)
 			continue
 		}
@@ -93,7 +56,7 @@ func AnnotationsToAttributeSet(annotations map[string]string, skip func(string) 
 // AnnotationsFromAttributeSet converts an AttributeSet to annotations. All annotation values
 // are saved in a JSON valid syntax to allow for typing upon retrieval.
 func AnnotationsFromAttributeSet(set model.AttributeSet) (map[string]string, error) {
-	return map[string]string{AnnotationUORAttributes: string(set.AsJSON())}, nil
+	return map[string]string{descriptor.AnnotationUORAttributes: string(set.AsJSON())}, nil
 }
 
 // UpdateLayerDescriptors updates layers descriptor annotations with attributes from an AttributeSet. The key in the fileAttributes
@@ -146,7 +109,7 @@ func UpdateLayerDescriptors(descs []ocispec.Descriptor, fileAttributes map[strin
 
 		if len(sets) > 0 {
 			mergedSet := mergeAttributes(sets)
-			desc.Annotations[AnnotationUORAttributes] = string(mergedSet.AsJSON())
+			desc.Annotations[descriptor.AnnotationUORAttributes] = string(mergedSet.AsJSON())
 		}
 
 		updateDescs = append(updateDescs, desc)

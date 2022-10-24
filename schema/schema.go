@@ -52,7 +52,9 @@ func New(schemaLoader Loader) (Schema, error) {
 func NewWithMulti(rootSchema Loader, additionalSchemas ...Loader) (Schema, error) {
 	sl := gojsonschema.NewSchemaLoader()
 	for _, schema := range additionalSchemas {
-		sl.AddSchemas(schema.loader)
+		if err := sl.AddSchemas(schema.loader); err != nil {
+			return Schema{}, err
+		}
 	}
 	schema, err := sl.Compile(rootSchema.loader)
 	if err != nil {

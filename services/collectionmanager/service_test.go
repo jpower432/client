@@ -65,7 +65,7 @@ func TestCollectionManagerServer_All(t *testing.T) {
 			name:      "Success/ValidWorkspace",
 			workspace: "testdata/workspace",
 			pubAssertFunc: func(resp *managerapi.Publish_Response) bool {
-				return resp.Digest == "sha256:2f0e884ddba718cba5eb540e3c0cb448ac0e72738a872be1618d839168b39032"
+				return resp.Digest == "sha256:530065c28858a8019008f648ea658c06b2042356b913de9d6d6e15f422b5382e"
 			},
 			resAssertFunc: func(_ *managerapi.Retrieve_Response, root string) bool {
 				_, err := os.Stat(path.Join(root, "fish.jpg"))
@@ -82,7 +82,7 @@ func TestCollectionManagerServer_All(t *testing.T) {
 			},
 			filter: map[string]interface{}{"animal": true},
 			pubAssertFunc: func(resp *managerapi.Publish_Response) bool {
-				return resp.Digest == "sha256:d23771ac05a0427c00498b5b8dc240811c8e91abd1522c12305874ceae09323f"
+				return resp.Digest == "sha256:ec32295f80718c27ca79c367ae4abf063d1b98e7e1d2492f2375c0310dd64992"
 			},
 			resAssertFunc: func(_ *managerapi.Retrieve_Response, root string) bool {
 				_, err := os.Stat(path.Join(root, "fish.jpg"))
@@ -96,7 +96,7 @@ func TestCollectionManagerServer_All(t *testing.T) {
 			filter:    map[string]interface{}{"test": "test"},
 			workspace: "testdata/workspace",
 			pubAssertFunc: func(resp *managerapi.Publish_Response) bool {
-				return resp.Digest == "sha256:2f0e884ddba718cba5eb540e3c0cb448ac0e72738a872be1618d839168b39032"
+				return resp.Digest == "sha256:530065c28858a8019008f648ea658c06b2042356b913de9d6d6e15f422b5382e"
 			},
 			resAssertFunc: func(resp *managerapi.Retrieve_Response, _ string) bool {
 				return len(resp.Diagnostics) != 0 && resp.Diagnostics[0].Severity == 2

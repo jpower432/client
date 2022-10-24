@@ -6,12 +6,13 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	artifactspec "github.com/oras-project/artifacts-spec/specs-go/v1"
+	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
 
 	"github.com/uor-framework/uor-client-go/model"
 	"github.com/uor-framework/uor-client-go/model/traversal"
 	"github.com/uor-framework/uor-client-go/nodes/collection"
-	"github.com/uor-framework/uor-client-go/nodes/descriptor"
+	v2 "github.com/uor-framework/uor-client-go/nodes/descriptor/v2"
+	v3 "github.com/uor-framework/uor-client-go/nodes/descriptor/v3"
 )
 
 // FetcherFunc fetches content for the specified descriptor
@@ -20,7 +21,7 @@ type FetcherFunc func(context.Context, ocispec.Descriptor) ([]byte, error)
 // LoadFromManifest loads an OCI DAG into a Collection.
 func LoadFromManifest(ctx context.Context, graph *collection.Collection, fetcher FetcherFunc, manifest ocispec.Descriptor) error {
 	// prepare pre-handler
-	root, err := descriptor.NewNode(manifest.Digest.String(), manifest)
+	root, err := v2.NewNode(manifest.Digest.String(), manifest)
 	if err != nil {
 		return err
 	}
@@ -35,7 +36,7 @@ func LoadFromManifest(ctx context.Context, graph *collection.Collection, fetcher
 			return nil, traversal.ErrSkip
 		}
 
-		desc, ok := node.(*descriptor.Node)
+		desc, ok := node.(*v2.Node)
 		if !ok {
 			return nil, traversal.ErrSkip
 		}
@@ -98,7 +99,7 @@ func addOrGetNode(graph *collection.Collection, desc ocispec.Descriptor) (model.
 	if n != nil {
 		return n, nil
 	}
-	n, err := descriptor.NewNode(desc.Digest.String(), desc)
+	n, err := v2.NewNode(desc.Digest.String(), desc)
 	if err != nil {
 		return n, err
 	}
@@ -137,35 +138,41 @@ func getSuccessors(ctx context.Context, fetcher FetcherFunc, node ocispec.Descri
 		}
 
 		return index.Manifests, nil
-	case artifactspec.MediaTypeArtifactManifest:
+	case ocispec.MediaTypeArtifactManifest:
 		content, err := fetcher(ctx, node)
 		if err != nil {
 			return nil, err
 		}
 
-		var manifest artifactspec.Manifest
+		var manifest ocispec.Artifact
 		if err := json.Unmarshal(content, &manifest); err != nil {
 			return nil, err
 		}
 		var nodes []ocispec.Descriptor
 		if manifest.Subject != nil {
-			nodes = append(nodes, artifactToOCI(*manifest.Subject))
+			nodes = append(nodes, *manifest.Subject)
 		}
+		return append(nodes, manifest.Blobs...), nil
+	case uorspec.MediaTypeCollectionManifest:
+		content, err := fetcher(ctx, node)
+		if err != nil {
+			return nil, err
+		}
+
+		var manifest uorspec.Manifest
+		if err := json.Unmarshal(content, &manifest); err != nil {
+			return nil, err
+		}
+		var nodes []ocispec.Descriptor
 		for _, blob := range manifest.Blobs {
-			nodes = append(nodes, artifactToOCI(blob))
+			collectionBlob, err := v3.CollectionToOCI(blob)
+			if err != nil {
+				return nil, err
+			}
+			nodes = append(nodes, collectionBlob)
 		}
 		return nodes, nil
 	}
-	return nil, nil
-}
 
-// artifactToOCI converts artifact descriptor to OCI descriptor.
-func artifactToOCI(desc artifactspec.Descriptor) ocispec.Descriptor {
-	return ocispec.Descriptor{
-		MediaType:   desc.MediaType,
-		Digest:      desc.Digest,
-		Size:        desc.Size,
-		URLs:        desc.URLs,
-		Annotations: desc.Annotations,
-	}
+	return nil, nil
 }

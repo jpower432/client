@@ -9,17 +9,23 @@ import (
 	"strings"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
 
 	clientapi "github.com/uor-framework/uor-client-go/api/client/v1alpha1"
 	load "github.com/uor-framework/uor-client-go/config"
 	"github.com/uor-framework/uor-client-go/content"
 	"github.com/uor-framework/uor-client-go/model"
-	"github.com/uor-framework/uor-client-go/ocimanifest"
+	"github.com/uor-framework/uor-client-go/nodes/descriptor"
+	"github.com/uor-framework/uor-client-go/nodes/descriptor/v2"
 	"github.com/uor-framework/uor-client-go/registryclient"
 	"github.com/uor-framework/uor-client-go/schema"
 	"github.com/uor-framework/uor-client-go/util/workspace"
 )
 
+// TODO(jpower432): v3 compatibility
+
+// Build builds collection from input and store it in the underlying content store.
+// If successful, the root descriptor is returned.
 func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, config clientapi.DataSetConfiguration, reference string, client registryclient.Client) (string, error) {
 	var files []string
 	err := space.Walk(func(path string, info os.FileInfo, err error) error {
@@ -57,11 +63,14 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 	collectionManifestAnnotations := map[string]string{}
 	if config.Collection.SchemaAddress != "" {
 		d.logger.Infof("Validating dataset configuration against schema %s", config.Collection.SchemaAddress)
-		collectionManifestAnnotations[ocimanifest.AnnotationSchema] = config.Collection.SchemaAddress
+		collectionManifestAnnotations[descriptor.AnnotationSchema] = config.Collection.SchemaAddress
+		if err != nil {
+			return "", fmt.Errorf("error configuring client: %v", err)
+		}
 
 		_, _, err = client.Pull(ctx, config.Collection.SchemaAddress, d.store)
 		if err != nil {
-			return "", fmt.Errorf("error configuring client: %v", err)
+			return "", err
 		}
 
 		schemaDoc, err := fetchJSONSchema(ctx, config.Collection.SchemaAddress, d.store)
@@ -102,12 +111,12 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 		return "", err
 	}
 
-	descs, err = ocimanifest.UpdateLayerDescriptors(descs, attributesByFile)
+	descs, err = v2.UpdateLayerDescriptors(descs, attributesByFile)
 	if err != nil {
 		return "", err
 	}
 
-	linkedDescs, linkedSchemas, err := gatherLinkedCollections(ctx, config, client)
+	linkedDescs, err := gatherLinkedCollections(ctx, config, client)
 	if err != nil {
 		return "", err
 	}
@@ -120,15 +129,14 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 	if err != nil {
 		return "", err
 	}
-	configDesc, err := client.AddContent(ctx, ocimanifest.UORConfigMediaType, configJSON, nil)
+	configDesc, err := client.AddContent(ctx, uorspec.MediaTypeConfiguration, configJSON, nil)
 	if err != nil {
 		return "", err
 	}
 
 	// Write the root collection attributes
 	if len(linkedDescs) > 0 {
-		collectionManifestAnnotations[ocimanifest.AnnotationSchemaLinks] = formatLinks(linkedSchemas)
-		collectionManifestAnnotations[ocimanifest.AnnotationCollectionLinks] = formatLinks(config.Collection.LinkedCollections)
+		collectionManifestAnnotations[descriptor.AnnotationCollectionLinks] = formatLinks(config.Collection.LinkedCollections)
 	}
 
 	_, err = client.AddManifest(ctx, reference, configDesc, collectionManifestAnnotations, descs...)
@@ -159,48 +167,44 @@ func fetchJSONSchema(ctx context.Context, schemaAddress string, store content.At
 	if err != nil {
 		return schema.Schema{}, err
 	}
-	return schema.FromBytes(schemaBytes)
+	loader, err := schema.FromBytes(schemaBytes)
+	if err != nil {
+		return schema.Schema{}, err
+	}
+	return schema.New(loader)
 }
 
 // gatherLinkedCollections create null descriptors to denotes linked collections in a manifest with schema link information.
-func gatherLinkedCollections(ctx context.Context, cfg clientapi.DataSetConfiguration, client registryclient.Client) ([]ocispec.Descriptor, []string, error) {
-	var allLinkedSchemas []string
+func gatherLinkedCollections(ctx context.Context, cfg clientapi.DataSetConfiguration, client registryclient.Client) ([]ocispec.Descriptor, error) {
 	var linkedDescs []ocispec.Descriptor
 	for _, collection := range cfg.Collection.LinkedCollections {
 
-		rootSchema, linkedSchemas, err := getLinks(ctx, collection, client)
+		rootSchema, err := getSchema(ctx, collection, client)
 		if err != nil {
-			return nil, nil, fmt.Errorf("collection %q: %w", collection, err)
+			return nil, fmt.Errorf("collection %q: %w", collection, err)
 		}
-
-		if len(linkedSchemas) != 0 {
-			allLinkedSchemas = append(allLinkedSchemas, linkedSchemas...)
-		}
-
-		allLinkedSchemas = append(allLinkedSchemas, rootSchema)
 
 		annotations := map[string]string{
-			ocimanifest.AnnotationSchema:      rootSchema,
-			ocimanifest.AnnotationSchemaLinks: formatLinks(linkedSchemas),
+			descriptor.AnnotationSchema: rootSchema,
 		}
 		// The bytes contain the collection name to keep the blobs unique within the manifest
 		desc, err := client.AddContent(ctx, ocispec.MediaTypeImageLayer, []byte(collection), annotations)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		linkedDescs = append(linkedDescs, desc)
 	}
-	return linkedDescs, allLinkedSchemas, nil
+	return linkedDescs, nil
 }
 
-// getLinks retrieves all schema information for a given reference.
-func getLinks(ctx context.Context, reference string, client registryclient.Remote) (string, []string, error) {
+// getSchema retrieves all schema information for a given reference.
+func getSchema(ctx context.Context, reference string, client registryclient.Remote) (string, error) {
 	_, manBytes, err := client.GetManifest(ctx, reference)
 	if err != nil {
-		return "", nil, err
+		return "", err
 	}
 	defer manBytes.Close()
-	return ocimanifest.FetchSchemaLinks(manBytes)
+	return descriptor.FetchSchema(manBytes)
 }
 
 func formatLinks(links []string) string {
@@ -210,7 +214,7 @@ func formatLinks(links []string) string {
 		return links[0]
 	case n > 1:
 		dedupLinks := deduplicate(links)
-		return strings.Join(dedupLinks, ocimanifest.Separator)
+		return strings.Join(dedupLinks, descriptor.Separator)
 	default:
 		return ""
 	}
