@@ -11,11 +11,11 @@ import (
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/require"
+	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
 
 	"github.com/uor-framework/uor-client-go/attributes"
 	"github.com/uor-framework/uor-client-go/attributes/matchers"
 	"github.com/uor-framework/uor-client-go/model"
-	"github.com/uor-framework/uor-client-go/ocimanifest"
 )
 
 func TestExists(t *testing.T) {
@@ -376,7 +376,7 @@ func TestAttributeSchema(t *testing.T) {
 			cacheDir: "testdata/schema",
 			ref:      "localhost:5001/schema-test:latest",
 			expRes: ocispec.Descriptor{
-				MediaType: ocimanifest.UORSchemaMediaType,
+				MediaType: uorspec.MediaTypeSchemaDescriptor,
 				Digest:    "sha256:a50ae3a26456b388ec5174e4f8b580ec26a9f94fb2a29a68e00516b3ddef5e76",
 				Size:      77,
 			},

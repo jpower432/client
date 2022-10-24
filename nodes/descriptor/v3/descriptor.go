@@ -1,16 +1,15 @@
-package descriptor
+package v3
 
 import (
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
 
 	"github.com/uor-framework/uor-client-go/model"
-	"github.com/uor-framework/uor-client-go/ocimanifest"
 )
 
 // Node defines a single unit containing information about a UOR dataset node.
 type Node struct {
 	id         string
-	descriptor ocispec.Descriptor
+	descriptor uorspec.Descriptor
 	attributes model.AttributeSet
 	Location   string
 }
@@ -18,8 +17,8 @@ type Node struct {
 var _ model.Node = &Node{}
 
 // NewNode create a new Descriptor Node.
-func NewNode(id string, descriptor ocispec.Descriptor) (*Node, error) {
-	attr, err := ocimanifest.AnnotationsToAttributeSet(descriptor.Annotations, nil)
+func NewNode(id string, descriptor uorspec.Descriptor) (*Node, error) {
+	attr, err := AttributesToAttributeSet(descriptor.Attributes, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -47,6 +46,6 @@ func (n *Node) Attributes() model.AttributeSet {
 }
 
 // Descriptor returns the underlying descriptor object.
-func (n *Node) Descriptor() ocispec.Descriptor {
+func (n *Node) Descriptor() uorspec.Descriptor {
 	return n.descriptor
 }

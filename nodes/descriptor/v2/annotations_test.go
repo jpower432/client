@@ -1,4 +1,4 @@
-package ocimanifest
+package v2
 
 import (
 	"testing"
@@ -8,11 +8,12 @@ import (
 
 	"github.com/uor-framework/uor-client-go/attributes"
 	"github.com/uor-framework/uor-client-go/model"
+	"github.com/uor-framework/uor-client-go/nodes/descriptor"
 )
 
 func TestAnnotationsFromAttributeSet(t *testing.T) {
 	expMap := map[string]string{
-		AnnotationUORAttributes: "{\"name\":\"test\",\"size\":2}",
+		descriptor.AnnotationUORAttributes: "{\"name\":\"test\",\"size\":2}",
 	}
 	set := attributes.Attributes{
 		"name": attributes.NewString("name", "test"),
@@ -26,8 +27,8 @@ func TestAnnotationsFromAttributeSet(t *testing.T) {
 func TestAnnotationsToAttributeSet(t *testing.T) {
 	expJSON := `{"kind":"jpg","name":"fish.jpg","ref":"example","size":2}`
 	annotations := map[string]string{
-		"ref":                   "example",
-		AnnotationUORAttributes: `{"kind":"jpg","name":"fish.jpg","size":2}`,
+		"ref":                              "example",
+		descriptor.AnnotationUORAttributes: `{"kind":"jpg","name":"fish.jpg","size":2}`,
 	}
 	set, err := AnnotationsToAttributeSet(annotations, nil)
 	require.NoError(t, err)
@@ -86,8 +87,8 @@ func TestUpdateLayerDescriptors(t *testing.T) {
 					Digest:    "sha256:84f48921e4ed2e0b370fa314a78dadd499cde260032bcfcd6c1d5089d6cc20a6",
 					Size:      2,
 					Annotations: map[string]string{
-						ocispec.AnnotationTitle: "fish.jpg",
-						AnnotationUORAttributes: "{\"image\":true}",
+						ocispec.AnnotationTitle:            "fish.jpg",
+						descriptor.AnnotationUORAttributes: "{\"image\":true}",
 					},
 				},
 				{
@@ -95,8 +96,8 @@ func TestUpdateLayerDescriptors(t *testing.T) {
 					Digest:    "sha256:84f48921e4ed2e0b370fa314a78dadd499cde260032bcfcd6c1d5089d6cc20456",
 					Size:      8,
 					Annotations: map[string]string{
-						ocispec.AnnotationTitle: "fish.json",
-						AnnotationUORAttributes: "{\"metadata\":true}",
+						ocispec.AnnotationTitle:            "fish.json",
+						descriptor.AnnotationUORAttributes: "{\"metadata\":true}",
 					},
 				},
 			},
@@ -117,8 +118,8 @@ func TestUpdateLayerDescriptors(t *testing.T) {
 					Digest:    "sha256:84f48921e4ed2e0b370fa314a78dadd499cde260032bcfcd6c1d5089d6cc20a6",
 					Size:      2,
 					Annotations: map[string]string{
-						ocispec.AnnotationTitle: "fish.jpg",
-						AnnotationUORAttributes: "{\"image\":true,\"publisher\":\"test\"}",
+						ocispec.AnnotationTitle:            "fish.jpg",
+						descriptor.AnnotationUORAttributes: "{\"image\":true,\"publisher\":\"test\"}",
 					},
 				},
 				{
@@ -126,8 +127,8 @@ func TestUpdateLayerDescriptors(t *testing.T) {
 					Digest:    "sha256:84f48921e4ed2e0b370fa314a78dadd499cde260032bcfcd6c1d5089d6cc20456",
 					Size:      8,
 					Annotations: map[string]string{
-						ocispec.AnnotationTitle: "fish.json",
-						AnnotationUORAttributes: "{\"publisher\":\"test\"}",
+						ocispec.AnnotationTitle:            "fish.json",
+						descriptor.AnnotationUORAttributes: "{\"publisher\":\"test\"}",
 					},
 				},
 			},

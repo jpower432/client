@@ -9,10 +9,14 @@ import (
 	"github.com/uor-framework/uor-client-go/content"
 	"github.com/uor-framework/uor-client-go/model"
 	"github.com/uor-framework/uor-client-go/model/traversal"
-	"github.com/uor-framework/uor-client-go/ocimanifest"
+	"github.com/uor-framework/uor-client-go/nodes/descriptor"
 	"github.com/uor-framework/uor-client-go/registryclient"
 )
 
+// TODO(jpower432): Add v3 support
+
+// Pull pulls a single collection to a specified storage destination.
+// If successful, the file locations are returned.
 func (d DefaultManager) Pull(ctx context.Context, source string, remote registryclient.Remote, destination content.Store) ([]string, error) {
 	descs, err := d.pullCollection(ctx, source, destination, remote)
 	if err != nil {
@@ -27,6 +31,10 @@ func (d DefaultManager) Pull(ctx context.Context, source string, remote registry
 	return digests, nil
 }
 
+// PullAll pulls linked collection to a specified storage destination.
+// If successful, the file locations are returned.
+// PullAll is similar to Pull with the exception that it walks a graph of linked collections
+// starting with the source collection reference.
 func (d DefaultManager) PullAll(ctx context.Context, source string, remote registryclient.Remote, destination content.Store) ([]string, error) {
 	root, err := remote.LoadCollection(ctx, source)
 	if err != nil {
@@ -60,7 +68,7 @@ func (d DefaultManager) pullCollection(ctx context.Context, reference string, de
 	return descs, nil
 }
 
-// copy performs graph traversal of linked collections and performs collection copies filtered by the matcher.
+// copyCollections performs graph traversal of linked collections and performs collection copies filtered by the matcher.
 func (d DefaultManager) copyCollections(ctx context.Context, root model.Node, destination content.Store, remote registryclient.Remote) ([]ocispec.Descriptor, error) {
 	seen := map[string]struct{}{}
 	var allDescs []ocispec.Descriptor
@@ -76,7 +84,7 @@ func (d DefaultManager) copyCollections(ctx context.Context, root model.Node, de
 
 		successors, err := getSuccessors(ctx, node.Address(), remote)
 		if err != nil {
-			if errors.Is(err, ocimanifest.ErrNoCollectionLinks) {
+			if errors.Is(err, descriptor.ErrNoCollectionLinks) {
 				d.logger.Debugf("collection %s has no links", node.Address())
 				return nil, nil
 			}
@@ -112,5 +120,5 @@ func getSuccessors(ctx context.Context, reference string, client registryclient.
 		return nil, err
 	}
 	defer manBytes.Close()
-	return ocimanifest.ResolveCollectionLinks(manBytes)
+	return descriptor.ResolveCollectionLinks(manBytes)
 }

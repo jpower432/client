@@ -21,7 +21,7 @@ import (
 
 	"github.com/uor-framework/uor-client-go/cmd/client/commands/options"
 	"github.com/uor-framework/uor-client-go/log"
-	"github.com/uor-framework/uor-client-go/ocimanifest"
+	"github.com/uor-framework/uor-client-go/nodes/descriptor"
 )
 
 func TestPullComplete(t *testing.T) {
@@ -313,21 +313,19 @@ func prepTestArtifact(t *testing.T, ref string, host string) {
 	}
 
 	linkAnnotations := map[string]string{
-		ocimanifest.AnnotationSchema: "test.com/schema:latest",
+		descriptor.AnnotationSchema: "test.com/schema:latest",
 	}
 	linked1Ref := fmt.Sprintf("%s/linked1:test", host)
 	publishFunc(fileLinked1Name, linked1Ref, fileContent, map[string]string{"test": "linked1annotation"}, linkAnnotations)
 	middleAnnotations := map[string]string{
-		ocimanifest.AnnotationSchema:          "test.com/schema:latest",
-		ocimanifest.AnnotationSchemaLinks:     "test.com/schema:latest",
-		ocimanifest.AnnotationCollectionLinks: linked1Ref,
+		descriptor.AnnotationSchema:          "test.com/schema:latest",
+		descriptor.AnnotationCollectionLinks: linked1Ref,
 	}
 	linkedRef := fmt.Sprintf("%s/linked:test", host)
 	publishFunc(fileLinkedName, linkedRef, fileContent, map[string]string{"test": "linkedannotation"}, middleAnnotations)
 	rootAnnotations := map[string]string{
-		ocimanifest.AnnotationSchema:          "test.com/schema:latest",
-		ocimanifest.AnnotationSchemaLinks:     "test.com/schema:latest",
-		ocimanifest.AnnotationCollectionLinks: linkedRef,
+		descriptor.AnnotationSchema:          "test.com/schema:latest",
+		descriptor.AnnotationCollectionLinks: linkedRef,
 	}
 	publishFunc(fileName, ref, fileContent, map[string]string{"test": "annotation"}, rootAnnotations)
 }

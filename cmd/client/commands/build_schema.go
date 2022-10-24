@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
+	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
 
 	load "github.com/uor-framework/uor-client-go/config"
 	"github.com/uor-framework/uor-client-go/content/layout"
-	"github.com/uor-framework/uor-client-go/ocimanifest"
 	"github.com/uor-framework/uor-client-go/registryclient/orasclient"
 	"github.com/uor-framework/uor-client-go/schema"
 	"github.com/uor-framework/uor-client-go/util/examples"
@@ -100,12 +100,12 @@ func (o *BuildSchemaOptions) Run(ctx context.Context) error {
 		return err
 	}
 
-	desc, err := client.AddContent(ctx, ocimanifest.UORSchemaMediaType, generatedSchema.Export(), nil)
+	desc, err := client.AddContent(ctx, uorspec.MediaTypeSchemaDescriptor, generatedSchema.Export(), nil)
 	if err != nil {
 		return err
 	}
 
-	configDesc, err := client.AddContent(ctx, ocimanifest.UORConfigMediaType, []byte("{}"), nil)
+	configDesc, err := client.AddContent(ctx, uorspec.MediaTypeConfiguration, []byte("{}"), nil)
 	if err != nil {
 		return err
 	}

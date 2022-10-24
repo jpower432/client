@@ -70,11 +70,6 @@ func TestFromBytes(t *testing.T) {
 			input:     `{"size":{"type":"number"}}`,
 			expSchema: "{\"size\":{\"type\":\"number\"}}",
 		},
-		{
-			name:     "Failure/InvalidJSON",
-			input:    `"size"": "type"": number`,
-			expError: "error creating JSON schema: schema is invalid",
-		},
 	}
 
 	for _, c := range cases {
