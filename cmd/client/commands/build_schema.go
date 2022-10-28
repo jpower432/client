@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -110,7 +111,17 @@ func (o *BuildSchemaOptions) Run(ctx context.Context) error {
 		return err
 	}
 
-	_, err = client.AddManifest(ctx, o.Destination, configDesc, nil, desc)
+	manifestAnnotations := map[string]string{}
+	schemaAttr := uorspec.SchemaAttributes{
+		ID:          config.Schema.ID,
+		Description: config.Schema.Description,
+	}
+	coreSchemaJSON, err := json.Marshal(schemaAttr)
+	if err != nil {
+		return err
+	}
+	manifestAnnotations[uorspec.AnnotationUORAttributes] = string(coreSchemaJSON)
+	_, err = client.AddManifest(ctx, o.Destination, configDesc, manifestAnnotations, desc)
 	if err != nil {
 		return err
 	}

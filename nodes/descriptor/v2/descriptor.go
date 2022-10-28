@@ -4,28 +4,33 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
 	"github.com/uor-framework/uor-client-go/model"
+	"github.com/uor-framework/uor-client-go/nodes/descriptor"
 )
 
 // Node defines a single unit containing information about a UOR dataset node.
 type Node struct {
 	id         string
 	descriptor ocispec.Descriptor
-	attributes model.AttributeSet
+	Properties *descriptor.Properties
 	Location   string
 }
 
 var _ model.Node = &Node{}
 
 // NewNode create a new Descriptor Node.
-func NewNode(id string, descriptor ocispec.Descriptor) (*Node, error) {
-	attr, err := AnnotationsToAttributeSet(descriptor.Annotations, nil)
+func NewNode(id string, desc ocispec.Descriptor) (*Node, error) {
+	attr, err := AnnotationsToAttributes(desc.Annotations)
+	if err != nil {
+		return nil, err
+	}
+	props, err := descriptor.Parse(attr)
 	if err != nil {
 		return nil, err
 	}
 	return &Node{
 		id:         id,
-		attributes: attr,
-		descriptor: descriptor,
+		Properties: props,
+		descriptor: desc,
 	}, nil
 }
 
@@ -42,7 +47,7 @@ func (n *Node) Address() string {
 
 // Attributes represents a collection of data defining the node.
 func (n *Node) Attributes() model.AttributeSet {
-	return n.attributes
+	return n.Properties
 }
 
 // Descriptor returns the underlying descriptor object.

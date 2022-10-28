@@ -291,7 +291,9 @@ func TestCollection_Attributes(t *testing.T) {
 			if attr == nil {
 				require.Len(t, c.expAttributes, 0)
 			} else {
-				require.Equal(t, c.expAttributes, string(attr.AsJSON()))
+				attrJSON, err := attr.MarshalJSON()
+				require.NoError(t, err)
+				require.Equal(t, c.expAttributes, string(attrJSON))
 			}
 		})
 	}

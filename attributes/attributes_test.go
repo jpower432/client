@@ -14,7 +14,9 @@ func TestAttributes_AsJSON(t *testing.T) {
 		"name": NewString("name", "test"),
 		"size": NewInt("size", 2),
 	}
-	require.Equal(t, expString, string(test.AsJSON()))
+	testJSON, err := test.AsJSON()
+	require.NoError(t, err)
+	require.Equal(t, expString, string(testJSON))
 }
 
 func TestAttributes_Exists(t *testing.T) {
@@ -58,4 +60,8 @@ func TestAttributes_List(t *testing.T) {
 	}
 	list := test.List()
 	require.Len(t, list, 2)
+}
+
+func TestMerge(t *testing.T) {
+
 }

@@ -12,7 +12,6 @@ import (
 	"github.com/uor-framework/uor-client-go/model/traversal"
 	"github.com/uor-framework/uor-client-go/nodes/collection"
 	v2 "github.com/uor-framework/uor-client-go/nodes/descriptor/v2"
-	v3 "github.com/uor-framework/uor-client-go/nodes/descriptor/v3"
 )
 
 // FetcherFunc fetches content for the specified descriptor
@@ -165,7 +164,7 @@ func getSuccessors(ctx context.Context, fetcher FetcherFunc, node ocispec.Descri
 		}
 		var nodes []ocispec.Descriptor
 		for _, blob := range manifest.Blobs {
-			collectionBlob, err := v3.CollectionToOCI(blob)
+			collectionBlob, err := v2.CollectionToOCI(blob)
 			if err != nil {
 				return nil, err
 			}

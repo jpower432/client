@@ -1,4 +1,4 @@
-package v3
+package v2
 
 import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -11,7 +11,7 @@ func CollectionToOCI(desc uorspec.Descriptor) (ocispec.Descriptor, error) {
 	for key, value := range desc.Annotations {
 		mergedAnnotations[key] = value
 	}
-	annotations, err := AttributesToAnnotations(desc.Attributes)
+	annotations, err := AnnotationsFromAttributes(desc.Attributes)
 	if err != nil {
 		return ocispec.Descriptor{}, err
 	}
@@ -37,7 +37,7 @@ func OCIToCollection(desc ocispec.Descriptor) (uorspec.Descriptor, error) {
 		desc.Annotations = map[string]string{}
 	}
 
-	attributes, err := AttributesFromAnnotations(desc.Annotations)
+	attributes, err := AnnotationsToAttributes(desc.Annotations)
 	if err != nil {
 		return uorspec.Descriptor{}, err
 	}

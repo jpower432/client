@@ -59,7 +59,13 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 		sets = append(sets, set)
 		attributesByFile[file.File] = set
 	}
-	mergedSet := mergeAttributes(sets)
+
+	// Merge the sets to ensure the dataset configuration
+	// meet the schema require.
+	mergedSet, err := attributes.Merge(sets)
+	if err != nil {
+		return "", fmt.Errorf("failed to merge attributes :%w", err)
+	}
 
 	// If a schema is present, pull it and do the validation before
 	// processing the files to get quick feedback to the user.
@@ -109,7 +115,17 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 		return "", err
 	}
 
-	descs, err = v2.UpdateLayerDescriptors(descs, attributesByFile)
+	var nodes []v2.Node
+	for _, desc := range descs {
+		node, err := v2.NewNode(desc.Digest.String(), desc)
+		if err != nil {
+			return "", err
+		}
+		nodes = append(nodes, *node)
+	}
+
+	// TODO(jpower432): Fill into component information here
+	descs, err = v2.UpdateDescriptors(nodes, attributesByFile)
 	if err != nil {
 		return "", err
 	}
@@ -142,14 +158,14 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 	if err != nil {
 		return "", err
 	}
-	coreSchema := uorspec.Core{
+	coreSchema := uorspec.ManifestAttributes{
 		RegistryHint: ref.Registry,
 	}
 	coreSchemaJSON, err := json.Marshal(coreSchema)
 	if err != nil {
 		return "", err
 	}
-	collectionManifestAnnotations[descriptor.AnnotationUORAttributes] = string(coreSchemaJSON)
+	collectionManifestAnnotations[uorspec.AnnotationUORAttributes] = string(coreSchemaJSON)
 	_, err = client.AddManifest(ctx, reference, configDesc, collectionManifestAnnotations, descs...)
 	if err != nil {
 		return "", err
@@ -242,24 +258,4 @@ func deduplicate(in []string) []string {
 		out = append(out, l)
 	}
 	return out
-}
-
-func mergeAttributes(sets []model.AttributeSet) model.AttributeSet {
-	newSet := attributes.Attributes{}
-
-	if len(sets) == 0 {
-		return newSet
-	}
-
-	if len(sets) == 1 {
-		return sets[0]
-	}
-
-	for _, set := range sets {
-		for key, value := range set.List() {
-			newSet[key] = value
-		}
-	}
-
-	return newSet
 }

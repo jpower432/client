@@ -18,7 +18,11 @@ type Schema struct {
 // Validate performs schema validation against the
 // input attribute set.
 func (s *Schema) Validate(set model.AttributeSet) (bool, error) {
-	doc := gojsonschema.NewBytesLoader(set.AsJSON())
+	attrDoc, err := set.MarshalJSON()
+	if err != nil {
+		return false, err
+	}
+	doc := gojsonschema.NewBytesLoader(attrDoc)
 	result, err := s.jsonSchema.Validate(doc)
 	if err != nil {
 		return false, err
