@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -23,10 +24,19 @@ const (
 	MediaTypeUnknownArtifact = "application/vnd.unknown.artifact.v1"
 )
 
+var (
+	// ErrInvalidDateTimeFormat is returned by Pack() when
+	// AnnotationArtifactCreated or AnnotationCreated is provided, but its value
+	// is not in RFC 3339 format.
+	// Reference: https://www.rfc-editor.org/rfc/rfc3339#section-5.6
+	ErrInvalidDateTimeFormat = errors.New("invalid date and time format")
+)
+
 // PackOptions and Pack are modified version of the upstream oras.Pack.
-// The main difference is that the timestamp information is not recorded in the annotations.
+// The main difference is that the timestamp information is not optional in the annotations.
 // To ensure digest reproducibility for this effort, timestamp information will be collected and stored
 // in predicate information in the artifact attestations.
+// TODO(jpower432): PR this back to `oras-go` if it makes sense.
 
 // PackOptions contains parameters for Pack.
 type PackOptions struct {
@@ -49,6 +59,9 @@ type PackOptions struct {
 	// This option is valid only when PackImageManifest is true
 	// and ConfigDescriptor is nil.
 	ConfigAnnotations map[string]string
+	// DisableTimeStamp controls whether the artifact creation timestamp
+	// annotation is created.
+	DisableTimestamp bool
 }
 
 func Pack(ctx context.Context, pusher content.Pusher, artifactType string, blobs []ocispec.Descriptor, opts PackOptions) (ocispec.Descriptor, error) {
@@ -66,12 +79,22 @@ func packArtifact(ctx context.Context, pusher content.Pusher, artifactType strin
 		artifactType = MediaTypeUnknownArtifact
 	}
 
+	var err error
+	annotations := opts.ManifestAnnotations
+
+	if !opts.DisableTimestamp {
+		annotations, err = ensureAnnotationCreated(opts.ManifestAnnotations, ocispec.AnnotationArtifactCreated)
+		if err != nil {
+			return ocispec.Descriptor{}, err
+		}
+	}
+
 	manifest := ocispec.Artifact{
 		MediaType:    ocispec.MediaTypeArtifactManifest,
 		ArtifactType: artifactType,
 		Blobs:        blobs,
 		Subject:      opts.Subject,
-		Annotations:  opts.ManifestAnnotations,
+		Annotations:  annotations,
 	}
 	manifestJSON, err := json.Marshal(manifest)
 	if err != nil {
@@ -104,6 +127,14 @@ func packImage(ctx context.Context, pusher content.Pusher, configMediaType strin
 		return ocispec.Descriptor{}, err
 	}
 
+	annotations := opts.ManifestAnnotations
+	if !opts.DisableTimestamp {
+		annotations, err = ensureAnnotationCreated(opts.ManifestAnnotations, ocispec.AnnotationArtifactCreated)
+		if err != nil {
+			return ocispec.Descriptor{}, err
+		}
+	}
+
 	if layers == nil {
 		layers = []ocispec.Descriptor{} // make it an empty array to prevent potential server-side bugs
 	}
@@ -115,7 +146,7 @@ func packImage(ctx context.Context, pusher content.Pusher, configMediaType strin
 		MediaType:   ocispec.MediaTypeImageManifest,
 		Layers:      layers,
 		Subject:     opts.Subject,
-		Annotations: opts.ManifestAnnotations,
+		Annotations: annotations,
 	}
 	manifestJSON, err := json.Marshal(manifest)
 	if err != nil {
@@ -194,4 +225,28 @@ func handleConfig(ctx context.Context, pusher content.Pusher, configMediaType st
 		}
 	}
 	return configDesc, nil
+}
+
+// ensureAnnotationCreated ensures that annotationCreatedKey is in annotations,
+// and that its value conforms to RFC 3339. Otherwise returns a new annotation
+// map with annotationCreatedKey created.
+func ensureAnnotationCreated(annotations map[string]string, annotationCreatedKey string) (map[string]string, error) {
+	if createdTime, ok := annotations[annotationCreatedKey]; ok {
+		// if annotationCreatedKey is provided, validate its format
+		if _, err := time.Parse(time.RFC3339, createdTime); err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrInvalidDateTimeFormat, err)
+		}
+		return annotations, nil
+	}
+
+	// copy the original annotation map
+	copied := make(map[string]string, len(annotations)+1)
+	for k, v := range annotations {
+		copied[k] = v
+	}
+	// set creation time in RFC 3339 format
+	// reference: https://github.com/opencontainers/image-spec/blob/v1.1.0-rc2/annotations.md#pre-defined-annotation-keys
+	now := time.Now().UTC()
+	copied[annotationCreatedKey] = now.Format(time.RFC3339)
+	return copied, nil
 }
