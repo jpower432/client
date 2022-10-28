@@ -32,7 +32,7 @@ func TestResolveCollectionLinks(t *testing.T) {
 		require.NoError(t, err)
 		manifest := uorspec.Manifest{
 			MediaType: uorspec.MediaTypeCollectionManifest,
-			Links: []*uorspec.Descriptor{
+			Links: []uorspec.Descriptor{
 				{
 					Digest: digest,
 				},

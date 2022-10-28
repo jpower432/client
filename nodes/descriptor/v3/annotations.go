@@ -9,47 +9,16 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
 
-	"github.com/uor-framework/uor-client-go/attributes"
 	"github.com/uor-framework/uor-client-go/model"
 	"github.com/uor-framework/uor-client-go/nodes/descriptor"
 )
 
-func AttributesToAttributeSet(specAttributes map[string]json.RawMessage, skip func(string) bool) (model.AttributeSet, error) {
-	set := attributes.Attributes{}
-
-	// FIXME(jpower432): Probably a faster way to do this, but Marshaling and Unmarshaling for
-	// ease initially.
-	specAttributesJSON, err := json.Marshal(specAttributes)
-	if err != nil {
-		return set, err
-	}
-	var data map[string]interface{}
-	if err := json.Unmarshal(specAttributesJSON, &data); err != nil {
-		return set, err
-	}
-
-	for key, value := range data {
-		if skip != nil && skip(key) {
-			continue
-		}
-
-		// Handle key collision. This should only occur if
-		// an annotation is set and the key also exists in the UOR
-		// specific attributes.
-		if _, exists := set[key]; exists {
-			continue
-		}
-
-		attr, err := attributes.Reflect(key, value)
-		if err != nil {
-			return set, fmt.Errorf("annotation %q: error creating attribute: %w", key, err)
-		}
-		set[key] = attr
-	}
-
-	return set, nil
+// AttributesToAttributeSet converts collection spec attributes to an attribute set.
+func AttributesToAttributeSet(specAttributes map[string]json.RawMessage) (model.AttributeSet, error) {
+	return descriptor.Parse(specAttributes)
 }
 
+// AttributesFromAttributeSet converts an attribute set on collection spec attributes.
 func AttributesFromAttributeSet(set model.AttributeSet) (map[string]json.RawMessage, error) {
 	attributes := map[string]json.RawMessage{}
 	for _, a := range set.List() {
@@ -62,48 +31,19 @@ func AttributesFromAttributeSet(set model.AttributeSet) (map[string]json.RawMess
 	return attributes, nil
 }
 
-func AttributesFromAnnotations(annotations map[string]string) (map[string]json.RawMessage, error) {
-	specAttributes := map[string]json.RawMessage{}
+// FIXME(jpower432): Deduplicate the below logic from v2, if possible
 
-	value, found := annotations[descriptor.AnnotationUORAttributes]
-	if !found {
-		return specAttributes, nil
-	}
-
-	// FIXME(jpower432): Probably a faster way to do this, but Marshaling and Unmarshaling for
-	// ease initially.
-	var data map[string]interface{}
-	if err := json.Unmarshal([]byte(value), &data); err != nil {
-		return specAttributes, err
-	}
-	for key, val := range data {
-		jVal, err := json.Marshal(val)
-		if err != nil {
-			return nil, err
-		}
-		specAttributes[key] = jVal
-	}
-
-	return specAttributes, nil
-}
-
-func AttributesToAnnotations(attributes map[string]json.RawMessage) (map[string]string, error) {
-	attrJSoN, err := json.Marshal(attributes)
-	if err != nil {
-		return nil, err
-	}
-	return map[string]string{descriptor.AnnotationUORAttributes: string(attrJSoN)}, nil
-}
-
-// FIXME(jpower432): Deduplicate the below logic, if possible
-
-// UpdateLayerDescriptors updates layers descriptor annotations with attributes from an AttributeSet. The key in the fileAttributes
+// UpdateDescriptors updates descriptor with attributes from an AttributeSet. The key in the fileAttributes
 // argument can be a regular expression or the name of a single file.
-func UpdateLayerDescriptors(descs []uorspec.Descriptor, fileAttributes map[string]model.AttributeSet) ([]uorspec.Descriptor, error) {
+func UpdateDescriptors(nodes []Node, fileAttributes map[string]model.AttributeSet) ([]uorspec.Descriptor, error) {
+	var updateDescs []uorspec.Descriptor
 
-	// Fail fast
+	// Base case
 	if len(fileAttributes) == 0 {
-		return descs, nil
+		for _, node := range nodes {
+			updateDescs = append(updateDescs, node.Descriptor())
+		}
+		return updateDescs, nil
 	}
 
 	// Process each key into a regular expression and store it.
@@ -124,17 +64,12 @@ func UpdateLayerDescriptors(descs []uorspec.Descriptor, fileAttributes map[strin
 		regexpByFilename[file] = nameSearch
 	}
 
-	var updateDescs []uorspec.Descriptor
-	for _, desc := range descs {
+	for _, node := range nodes {
 
 		var sets []model.AttributeSet
-		if desc.Annotations == nil {
-			desc.Annotations = map[string]string{}
-		}
-
+		desc := node.Descriptor()
 		filename, ok := desc.Annotations[ocispec.AnnotationTitle]
 		if !ok {
-			// skip any descriptor with no name attached
 			continue
 		}
 
@@ -146,8 +81,10 @@ func UpdateLayerDescriptors(descs []uorspec.Descriptor, fileAttributes map[strin
 		}
 
 		if len(sets) > 0 {
-			mergedSet := mergeAttributes(sets)
-			mergedAttributes, err := AttributesFromAttributeSet(mergedSet)
+			if err := node.Properties.Merge(sets); err != nil {
+				return nil, fmt.Errorf("file %s: %w", filename, err)
+			}
+			mergedAttributes, err := AttributesFromAttributeSet(node.Properties)
 			if err != nil {
 				return nil, err
 			}
@@ -157,24 +94,4 @@ func UpdateLayerDescriptors(descs []uorspec.Descriptor, fileAttributes map[strin
 		updateDescs = append(updateDescs, desc)
 	}
 	return updateDescs, nil
-}
-
-func mergeAttributes(sets []model.AttributeSet) model.AttributeSet {
-	newSet := attributes.Attributes{}
-
-	if len(sets) == 0 {
-		return newSet
-	}
-
-	if len(sets) == 1 {
-		return sets[0]
-	}
-
-	for _, set := range sets {
-		for key, value := range set.List() {
-			newSet[key] = value
-		}
-	}
-
-	return newSet
 }

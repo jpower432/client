@@ -4,28 +4,29 @@ import (
 	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
 
 	"github.com/uor-framework/uor-client-go/model"
+	"github.com/uor-framework/uor-client-go/nodes/descriptor"
 )
 
 // Node defines a single unit containing information about a UOR dataset node.
 type Node struct {
 	id         string
 	descriptor uorspec.Descriptor
-	attributes model.AttributeSet
+	Properties *descriptor.Properties
 	Location   string
 }
 
 var _ model.Node = &Node{}
 
 // NewNode create a new Descriptor Node.
-func NewNode(id string, descriptor uorspec.Descriptor) (*Node, error) {
-	attr, err := AttributesToAttributeSet(descriptor.Attributes, nil)
+func NewNode(id string, desc uorspec.Descriptor) (*Node, error) {
+	prop, err := descriptor.Parse(desc.Attributes)
 	if err != nil {
 		return nil, err
 	}
 	return &Node{
 		id:         id,
-		attributes: attr,
-		descriptor: descriptor,
+		Properties: prop,
+		descriptor: desc,
 	}, nil
 }
 
@@ -42,7 +43,7 @@ func (n *Node) Address() string {
 
 // Attributes represents a collection of data defining the node.
 func (n *Node) Attributes() model.AttributeSet {
-	return n.attributes
+	return n.Properties
 }
 
 // Descriptor returns the underlying descriptor object.

@@ -20,9 +20,6 @@ const (
 	// reference adjacent collection and will not descend
 	// into sub-collections.
 	AnnotationCollectionLinks = "uor.collections.linked"
-	// AnnotationUORAttributes references the collection attributes in a
-	// JSON format.
-	AnnotationUORAttributes = "uor.attributes"
 	// Separator is the value used to denote a list of
 	// schema or collection in a manifest.
 	Separator = ","

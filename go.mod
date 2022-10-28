@@ -27,6 +27,7 @@ require (
 )
 
 require (
+	github.com/buger/jsonparser v1.1.1
 	github.com/sigstore/cosign v1.13.1
 	github.com/uor-framework/collection-spec v0.0.0-00010101000000-000000000000
 )

@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/uor-framework/uor-client-go/attributes"
-	"github.com/uor-framework/uor-client-go/nodes/descriptor"
 )
 
 func TestAttributesFromAttributeSet(t *testing.T) {
@@ -31,37 +30,12 @@ func TestAttributesToAttributeSet(t *testing.T) {
 		"name": []byte("\"fish.jpg\""),
 		"size": []byte("2"),
 	}
-	set, err := AttributesToAttributeSet(attrs, nil)
+	set, err := AttributesToAttributeSet(attrs)
 	require.NoError(t, err)
-	require.Equal(t, expJSON, string(set.AsJSON()))
+	setJSON, err := set.MarshalJSON()
+	require.Equal(t, expJSON, string(setJSON))
 	// JSON standard lib will unmarshal all numbers as float64
 	exists, err := set.Exists(attributes.NewFloat("size", 2))
 	require.NoError(t, err)
 	require.True(t, exists)
-}
-
-func TestAttributesFromAnnotations(t *testing.T) {
-	annotations := map[string]string{
-		descriptor.AnnotationUORAttributes: "{\"name\":\"test\",\"size\":2}",
-	}
-	expAttrs := map[string]json.RawMessage{
-		"name": []byte("\"test\""),
-		"size": []byte("2"),
-	}
-	attrs, err := AttributesFromAnnotations(annotations)
-	require.NoError(t, err)
-	require.Equal(t, expAttrs, attrs)
-}
-
-func TestAttributesToAnnotations(t *testing.T) {
-	expMap := map[string]string{
-		descriptor.AnnotationUORAttributes: "{\"name\":\"test\",\"size\":2}",
-	}
-	attrs := map[string]json.RawMessage{
-		"name": []byte("\"test\""),
-		"size": []byte("2"),
-	}
-	annotations, err := AttributesToAnnotations(attrs)
-	require.NoError(t, err)
-	require.Equal(t, expMap, annotations)
 }

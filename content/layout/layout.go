@@ -146,6 +146,7 @@ func (l *Layout) ResolveByAttribute(ctx context.Context, reference string, match
 		if match {
 			desc, ok := node.(*v2.Node)
 			if ok {
+
 				// Check that the blob actually exists within the file
 				// store. This will filter out blobs in the event that this is a
 				// sparse manifest.
