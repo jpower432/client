@@ -64,9 +64,6 @@ func TestCollectionManagerServer_All(t *testing.T) {
 		{
 			name:      "Success/ValidWorkspace",
 			workspace: "testdata/workspace",
-			pubAssertFunc: func(resp *managerapi.Publish_Response) bool {
-				return resp.Digest == "sha256:530065c28858a8019008f648ea658c06b2042356b913de9d6d6e15f422b5382e"
-			},
 			resAssertFunc: func(_ *managerapi.Retrieve_Response, root string) bool {
 				_, err := os.Stat(path.Join(root, "fish.jpg"))
 				return err == nil
@@ -81,9 +78,6 @@ func TestCollectionManagerServer_All(t *testing.T) {
 				},
 			},
 			filter: map[string]interface{}{"animal": true},
-			pubAssertFunc: func(resp *managerapi.Publish_Response) bool {
-				return resp.Digest == "sha256:ec32295f80718c27ca79c367ae4abf063d1b98e7e1d2492f2375c0310dd64992"
-			},
 			resAssertFunc: func(_ *managerapi.Retrieve_Response, root string) bool {
 				_, err := os.Stat(path.Join(root, "fish.jpg"))
 				return err == nil
@@ -95,9 +89,6 @@ func TestCollectionManagerServer_All(t *testing.T) {
 			errMes:    "",
 			filter:    map[string]interface{}{"test": "test"},
 			workspace: "testdata/workspace",
-			pubAssertFunc: func(resp *managerapi.Publish_Response) bool {
-				return resp.Digest == "sha256:530065c28858a8019008f648ea658c06b2042356b913de9d6d6e15f422b5382e"
-			},
 			resAssertFunc: func(resp *managerapi.Retrieve_Response, _ string) bool {
 				return len(resp.Diagnostics) != 0 && resp.Diagnostics[0].Severity == 2
 			},
@@ -149,13 +140,12 @@ func TestCollectionManagerServer_All(t *testing.T) {
 				require.EqualError(t, err, c.errMes)
 			} else {
 				require.NoError(t, err)
-				require.True(t, c.pubAssertFunc(pResp))
 			}
 
 			require.NoError(t, err)
 			destination := t.TempDir()
 			rRequest := &managerapi.Retrieve_Request{
-				Source:      fmt.Sprintf("%s/test:latest", u.Host),
+				Source:      fmt.Sprintf("%s/test@%s", u.Host, pResp.Digest),
 				Destination: destination,
 			}
 
