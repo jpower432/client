@@ -57,9 +57,9 @@ func FetchSchema(input io.Reader) (string, error) {
 // TODO(jpower432): Resolve into a query instead of slice of string
 
 // ResolveCollectionLinks finds linked collection references from a given input.
-func ResolveCollectionLinks(input io.Reader) ([]string, error) {
+func ResolveCollectionLinks(reader io.Reader) ([]string, error) {
 	var buf bytes.Buffer
-	tee := io.TeeReader(input, &buf)
+	tee := io.TeeReader(reader, &buf)
 	var descriptor ocispec.Descriptor
 	if err := json.NewDecoder(tee).Decode(&descriptor); err != nil {
 		return nil, err
