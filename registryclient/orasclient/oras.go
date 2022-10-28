@@ -99,6 +99,7 @@ func (c *orasClient) AddManifest(ctx context.Context, ref string, configDesc oci
 
 	var packOpts PackOptions
 	packOpts.ManifestAnnotations = manifestAnnotations
+	packOpts.DisableTimestamp = true
 
 	manifestDesc, err := Pack(ctx, c.artifactStore, "", descriptors, packOpts)
 	if err != nil {
