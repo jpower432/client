@@ -10,8 +10,10 @@ import (
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
+	"oras.land/oras-go/v2/registry"
 
 	clientapi "github.com/uor-framework/uor-client-go/api/client/v1alpha1"
+	"github.com/uor-framework/uor-client-go/attributes"
 	load "github.com/uor-framework/uor-client-go/config"
 	"github.com/uor-framework/uor-client-go/content"
 	"github.com/uor-framework/uor-client-go/model"
@@ -21,8 +23,6 @@ import (
 	"github.com/uor-framework/uor-client-go/schema"
 	"github.com/uor-framework/uor-client-go/util/workspace"
 )
-
-// TODO(jpower432): v3 compatibility
 
 // Build builds collection from input and store it in the underlying content store.
 // If successful, the root descriptor is returned.
@@ -45,18 +45,21 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 		return "", err
 	}
 
+	if len(files) == 0 {
+		return "", fmt.Errorf("path %q empty workspace", space.Path("."))
+	}
+
 	attributesByFile := map[string]model.AttributeSet{}
+	var sets []model.AttributeSet
 	for _, file := range config.Collection.Files {
 		set, err := load.ConvertToModel(file.Attributes)
 		if err != nil {
 			return "", err
 		}
+		sets = append(sets, set)
 		attributesByFile[file.File] = set
 	}
-
-	if len(files) == 0 {
-		return "", fmt.Errorf("path %q empty workspace", space.Path("."))
-	}
+	mergedSet := mergeAttributes(sets)
 
 	// If a schema is present, pull it and do the validation before
 	// processing the files to get quick feedback to the user.
@@ -64,13 +67,10 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 	if config.Collection.SchemaAddress != "" {
 		d.logger.Infof("Validating dataset configuration against schema %s", config.Collection.SchemaAddress)
 		collectionManifestAnnotations[descriptor.AnnotationSchema] = config.Collection.SchemaAddress
-		if err != nil {
-			return "", fmt.Errorf("error configuring client: %v", err)
-		}
 
 		_, _, err = client.Pull(ctx, config.Collection.SchemaAddress, d.store)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("error configuring client: %v", err)
 		}
 
 		schemaDoc, err := fetchJSONSchema(ctx, config.Collection.SchemaAddress, d.store)
@@ -78,14 +78,12 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 			return "", err
 		}
 
-		for file, attr := range attributesByFile {
-			valid, err := schemaDoc.Validate(attr)
-			if err != nil {
-				return "", fmt.Errorf("schema validation error: %w", err)
-			}
-			if !valid {
-				return "", fmt.Errorf("attributes for file %s are not valid for schema %s", file, config.Collection.SchemaAddress)
-			}
+		valid, err := schemaDoc.Validate(mergedSet)
+		if err != nil {
+			return "", fmt.Errorf("schema validation error: %w", err)
+		}
+		if !valid {
+			return "", fmt.Errorf("attributes are not valid for schema %s", config.Collection.SchemaAddress)
 		}
 	}
 
@@ -125,6 +123,7 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 
 	// Store the DataSetConfiguration file in the manifest config of the OCI artifact for
 	// later use.
+	// Artifacts don't have configs. This will have to go with the regular descriptors.
 	configJSON, err := json.Marshal(config)
 	if err != nil {
 		return "", err
@@ -139,6 +138,18 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 		collectionManifestAnnotations[descriptor.AnnotationCollectionLinks] = formatLinks(config.Collection.LinkedCollections)
 	}
 
+	ref, err := registry.ParseReference(reference)
+	if err != nil {
+		return "", err
+	}
+	coreSchema := uorspec.Core{
+		RegistryHint: ref.Registry,
+	}
+	coreSchemaJSON, err := json.Marshal(coreSchema)
+	if err != nil {
+		return "", err
+	}
+	collectionManifestAnnotations[descriptor.AnnotationUORAttributes] = string(coreSchemaJSON)
 	_, err = client.AddManifest(ctx, reference, configDesc, collectionManifestAnnotations, descs...)
 	if err != nil {
 		return "", err
@@ -231,4 +242,24 @@ func deduplicate(in []string) []string {
 		out = append(out, l)
 	}
 	return out
+}
+
+func mergeAttributes(sets []model.AttributeSet) model.AttributeSet {
+	newSet := attributes.Attributes{}
+
+	if len(sets) == 0 {
+		return newSet
+	}
+
+	if len(sets) == 1 {
+		return sets[0]
+	}
+
+	for _, set := range sets {
+		for key, value := range set.List() {
+			newSet[key] = value
+		}
+	}
+
+	return newSet
 }

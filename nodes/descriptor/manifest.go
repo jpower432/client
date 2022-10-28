@@ -76,6 +76,9 @@ func ResolveCollectionLinks(input io.Reader) ([]string, error) {
 		for _, l := range manifest.Links {
 			digests = append(digests, l.Digest.String())
 		}
+		if len(digests) == 0 {
+			return nil, ErrNoCollectionLinks
+		}
 		return digests, nil
 	default:
 		var manifest ocispec.Manifest

@@ -1,54 +1,67 @@
 package v3
 
 import (
+	"encoding/json"
 	"testing"
 
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/stretchr/testify/require"
 
-	"github.com/uor-framework/uor-client-go/model"
+	"github.com/uor-framework/uor-client-go/attributes"
+	"github.com/uor-framework/uor-client-go/nodes/descriptor"
 )
 
-func TestUpdateLayerDescriptors(t *testing.T) {
-
-	descs := []ocispec.Descriptor{
-		{
-			MediaType: ocispec.MediaTypeImageLayerGzip,
-			Digest:    "sha256:84f48921e4ed2e0b370fa314a78dadd499cde260032bcfcd6c1d5089d6cc20a6",
-			Size:      2,
-			Annotations: map[string]string{
-				ocispec.AnnotationTitle: "fish.jpg",
-			},
-		},
-		{
-			MediaType: ocispec.MediaTypeImageLayerGzip,
-			Digest:    "sha256:84f48921e4ed2e0b370fa314a78dadd499cde260032bcfcd6c1d5089d6cc20456",
-			Size:      8,
-			Annotations: map[string]string{
-				ocispec.AnnotationTitle: "fish.json",
-			},
-		},
+func TestAttributesFromAttributeSet(t *testing.T) {
+	expAttrs := map[string]json.RawMessage{
+		"name": []byte("\"test\""),
+		"size": []byte("2"),
 	}
-	type spec struct {
-		name           string
-		fileAttributes map[string]model.AttributeSet
-		expError       string
-		expDesc        []ocispec.Descriptor
+	set := attributes.Attributes{
+		"name": attributes.NewString("name", "test"),
+		"size": attributes.NewInt("size", 2),
 	}
+	attrs, err := AttributesFromAttributeSet(set)
+	require.NoError(t, err)
+	require.Equal(t, expAttrs, attrs)
+}
 
-	cases := []spec{
-		{
-			name:    "Success/NoAttributes",
-			expDesc: descs,
-		},
+func TestAttributesToAttributeSet(t *testing.T) {
+	expJSON := `{"kind":"jpg","name":"fish.jpg","size":2}`
+	attrs := map[string]json.RawMessage{
+		"kind": []byte("\"jpg\""),
+		"name": []byte("\"fish.jpg\""),
+		"size": []byte("2"),
 	}
+	set, err := AttributesToAttributeSet(attrs, nil)
+	require.NoError(t, err)
+	require.Equal(t, expJSON, string(set.AsJSON()))
+	// JSON standard lib will unmarshal all numbers as float64
+	exists, err := set.Exists(attributes.NewFloat("size", 2))
+	require.NoError(t, err)
+	require.True(t, exists)
+}
 
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			if c.expError != "" {
-
-			} else {
-
-			}
-		})
+func TestAttributesFromAnnotations(t *testing.T) {
+	annotations := map[string]string{
+		descriptor.AnnotationUORAttributes: "{\"name\":\"test\",\"size\":2}",
 	}
+	expAttrs := map[string]json.RawMessage{
+		"name": []byte("\"test\""),
+		"size": []byte("2"),
+	}
+	attrs, err := AttributesFromAnnotations(annotations)
+	require.NoError(t, err)
+	require.Equal(t, expAttrs, attrs)
+}
+
+func TestAttributesToAnnotations(t *testing.T) {
+	expMap := map[string]string{
+		descriptor.AnnotationUORAttributes: "{\"name\":\"test\",\"size\":2}",
+	}
+	attrs := map[string]json.RawMessage{
+		"name": []byte("\"test\""),
+		"size": []byte("2"),
+	}
+	annotations, err := AttributesToAnnotations(attrs)
+	require.NoError(t, err)
+	require.Equal(t, expMap, annotations)
 }

@@ -17,7 +17,18 @@ import (
 func AttributesToAttributeSet(specAttributes map[string]json.RawMessage, skip func(string) bool) (model.AttributeSet, error) {
 	set := attributes.Attributes{}
 
-	for key, value := range specAttributes {
+	// FIXME(jpower432): Probably a faster way to do this, but Marshaling and Unmarshaling for
+	// ease initially.
+	specAttributesJSON, err := json.Marshal(specAttributes)
+	if err != nil {
+		return set, err
+	}
+	var data map[string]interface{}
+	if err := json.Unmarshal(specAttributesJSON, &data); err != nil {
+		return set, err
+	}
+
+	for key, value := range data {
 		if skip != nil && skip(key) {
 			continue
 		}
@@ -29,19 +40,13 @@ func AttributesToAttributeSet(specAttributes map[string]json.RawMessage, skip fu
 			continue
 		}
 
-		// FIXME(jpower432): Is there a better way to do this
-		var data map[string]interface{}
-		if err := json.Unmarshal(value, &data); err != nil {
-			return set, err
+		attr, err := attributes.Reflect(key, value)
+		if err != nil {
+			return set, fmt.Errorf("annotation %q: error creating attribute: %w", key, err)
 		}
-		for jKey, jVal := range data {
-			attr, err := attributes.Reflect(jKey, jVal)
-			if err != nil {
-				return set, fmt.Errorf("annotation %q: error creating attribute: %w", key, err)
-			}
-			set[jKey] = attr
-		}
+		set[key] = attr
 	}
+
 	return set, nil
 }
 
@@ -57,7 +62,7 @@ func AttributesFromAttributeSet(set model.AttributeSet) (map[string]json.RawMess
 	return attributes, nil
 }
 
-func AttributesFromAnnotations(annotations map[string]string, skip func(string) bool) (map[string]json.RawMessage, error) {
+func AttributesFromAnnotations(annotations map[string]string) (map[string]json.RawMessage, error) {
 	specAttributes := map[string]json.RawMessage{}
 
 	value, found := annotations[descriptor.AnnotationUORAttributes]
@@ -65,8 +70,8 @@ func AttributesFromAnnotations(annotations map[string]string, skip func(string) 
 		return specAttributes, nil
 	}
 
-	// TODO(jpower432): Custom unmarsharling
-
+	// FIXME(jpower432): Probably a faster way to do this, but Marshaling and Unmarshaling for
+	// ease initially.
 	var data map[string]interface{}
 	if err := json.Unmarshal([]byte(value), &data); err != nil {
 		return specAttributes, err
@@ -90,7 +95,7 @@ func AttributesToAnnotations(attributes map[string]json.RawMessage) (map[string]
 	return map[string]string{descriptor.AnnotationUORAttributes: string(attrJSoN)}, nil
 }
 
-// TODO(jpower432): Deduplicate
+// FIXME(jpower432): Deduplicate the below logic, if possible
 
 // UpdateLayerDescriptors updates layers descriptor annotations with attributes from an AttributeSet. The key in the fileAttributes
 // argument can be a regular expression or the name of a single file.
