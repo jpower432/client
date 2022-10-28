@@ -13,8 +13,6 @@ import (
 	"github.com/uor-framework/uor-client-go/registryclient"
 )
 
-// TODO(jpower432): Add v3 support
-
 // Pull pulls a single collection to a specified storage destination.
 // If successful, the file locations are returned.
 func (d DefaultManager) Pull(ctx context.Context, source string, remote registryclient.Remote, destination content.Store) ([]string, error) {

@@ -37,7 +37,7 @@ func OCIToCollection(desc ocispec.Descriptor) (uorspec.Descriptor, error) {
 		desc.Annotations = map[string]string{}
 	}
 
-	attributes, err := AttributesFromAnnotations(desc.Annotations, nil)
+	attributes, err := AttributesFromAnnotations(desc.Annotations)
 	if err != nil {
 		return uorspec.Descriptor{}, err
 	}
