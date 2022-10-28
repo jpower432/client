@@ -9,8 +9,6 @@ import (
 	"github.com/uor-framework/uor-client-go/model"
 )
 
-// TODo(jpower432): Create v3 compatible storage.
-
 // Store defines the methods for adding, inspecting, and removing
 // OCI content from a storage location. The interface wraps oras
 // Storage and TagResolver interfaces for use with `oras` Copy methods.
