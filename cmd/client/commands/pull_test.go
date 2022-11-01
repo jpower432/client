@@ -14,6 +14,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/registry"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/require"
+	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/memory"
@@ -21,7 +22,6 @@ import (
 
 	"github.com/uor-framework/uor-client-go/cmd/client/commands/options"
 	"github.com/uor-framework/uor-client-go/log"
-	"github.com/uor-framework/uor-client-go/nodes/descriptor"
 )
 
 func TestPullComplete(t *testing.T) {
@@ -313,19 +313,19 @@ func prepTestArtifact(t *testing.T, ref string, host string) {
 	}
 
 	linkAnnotations := map[string]string{
-		descriptor.AnnotationSchema: "test.com/schema:latest",
+		uorspec.AnnotationSchema: "test.com/schema:latest",
 	}
 	linked1Ref := fmt.Sprintf("%s/linked1:test", host)
 	publishFunc(fileLinked1Name, linked1Ref, fileContent, map[string]string{"test": "linked1annotation"}, linkAnnotations)
 	middleAnnotations := map[string]string{
-		descriptor.AnnotationSchema:          "test.com/schema:latest",
-		descriptor.AnnotationCollectionLinks: linked1Ref,
+		uorspec.AnnotationSchema:          "test.com/schema:latest",
+		uorspec.AnnotationCollectionLinks: linked1Ref,
 	}
 	linkedRef := fmt.Sprintf("%s/linked:test", host)
 	publishFunc(fileLinkedName, linkedRef, fileContent, map[string]string{"test": "linkedannotation"}, middleAnnotations)
 	rootAnnotations := map[string]string{
-		descriptor.AnnotationSchema:          "test.com/schema:latest",
-		descriptor.AnnotationCollectionLinks: linkedRef,
+		uorspec.AnnotationSchema:          "test.com/schema:latest",
+		uorspec.AnnotationCollectionLinks: linkedRef,
 	}
 	publishFunc(fileName, ref, fileContent, map[string]string{"test": "annotation"}, rootAnnotations)
 }

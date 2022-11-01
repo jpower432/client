@@ -72,7 +72,7 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 	collectionManifestAnnotations := map[string]string{}
 	if config.Collection.SchemaAddress != "" {
 		d.logger.Infof("Validating dataset configuration against schema %s", config.Collection.SchemaAddress)
-		collectionManifestAnnotations[descriptor.AnnotationSchema] = config.Collection.SchemaAddress
+		collectionManifestAnnotations[uorspec.AnnotationSchema] = config.Collection.SchemaAddress
 
 		_, _, err = client.Pull(ctx, config.Collection.SchemaAddress, d.store)
 		if err != nil {
@@ -151,7 +151,7 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 
 	// Write the root collection attributes
 	if len(linkedDescs) > 0 {
-		collectionManifestAnnotations[descriptor.AnnotationCollectionLinks] = formatLinks(config.Collection.LinkedCollections)
+		collectionManifestAnnotations[uorspec.AnnotationCollectionLinks] = formatLinks(config.Collection.LinkedCollections)
 	}
 
 	ref, err := registry.ParseReference(reference)
@@ -212,7 +212,7 @@ func gatherLinkedCollections(ctx context.Context, cfg clientapi.DataSetConfigura
 		}
 
 		annotations := map[string]string{
-			descriptor.AnnotationSchema: rootSchema,
+			uorspec.AnnotationSchema: rootSchema,
 		}
 		// The bytes contain the collection name to keep the blobs unique within the manifest
 		desc, err := client.AddContent(ctx, ocispec.MediaTypeImageLayer, []byte(collection), annotations)

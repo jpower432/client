@@ -24,7 +24,7 @@ func TestAttributesFromAttributeSet(t *testing.T) {
 }
 
 func TestAttributesToAttributeSet(t *testing.T) {
-	expJSON := `{"kind":"jpg","name":"fish.jpg","size":2}`
+	expJSON := `{"uor.user.attributes":{"kind":"jpg","name":"fish.jpg","size":2}}`
 	attrs := map[string]json.RawMessage{
 		"kind": []byte("\"jpg\""),
 		"name": []byte("\"fish.jpg\""),

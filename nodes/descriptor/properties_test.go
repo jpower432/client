@@ -10,6 +10,7 @@ import (
 )
 
 func TestProperties_MarshalJSON(t *testing.T) {
+	expJSON := `{"uor.core.manifest":{"registryHint":"test"},"uor.core.descriptor":{"component":{"id":"id","name":"","version":"","type":"","foundBy":"","locations":null,"licenses":null,"language":"","cpes":null,"purl":""}},"uor.user.attributes":{"name":"test","size":2}}`
 	set := attributes.Attributes{
 		"name": attributes.NewString("name", "test"),
 		"size": attributes.NewInt("size", 2),
@@ -20,13 +21,12 @@ func TestProperties_MarshalJSON(t *testing.T) {
 		},
 		Descriptor: &uorspec.DescriptorAttributes{
 			Component: uorspec.Component{
-				AdditionalMetadata: []byte("2"),
+				ID: "id",
 			},
 		},
 		Others: set,
 	}
 	propsJSON, err := props.MarshalJSON()
 	require.NoError(t, err)
-	t.Log(string(propsJSON))
-	t.Fail()
+	require.Equal(t, expJSON, string(propsJSON))
 }
