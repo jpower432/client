@@ -70,30 +70,6 @@ func TestAnnotationsFromAttributes(t *testing.T) {
 
 func TestUpdateLayerDescriptors(t *testing.T) {
 
-	descs := []ocispec.Descriptor{
-		{
-			MediaType: ocispec.MediaTypeImageLayerGzip,
-			Digest:    "sha256:84f48921e4ed2e0b370fa314a78dadd499cde260032bcfcd6c1d5089d6cc20a6",
-			Size:      2,
-			Annotations: map[string]string{
-				ocispec.AnnotationTitle: "fish.jpg",
-			},
-		},
-		{
-			MediaType: ocispec.MediaTypeImageLayerGzip,
-			Digest:    "sha256:84f48921e4ed2e0b370fa314a78dadd499cde260032bcfcd6c1d5089d6cc20456",
-			Size:      8,
-			Annotations: map[string]string{
-				ocispec.AnnotationTitle: "fish.json",
-			},
-		},
-	}
-	var nodes []Node
-	for _, desc := range descs {
-		node, err := NewNode(desc.Digest.String(), desc)
-		require.NoError(t, err)
-		nodes = append(nodes, *node)
-	}
 	type spec struct {
 		name           string
 		fileAttributes map[string]model.AttributeSet
@@ -103,8 +79,25 @@ func TestUpdateLayerDescriptors(t *testing.T) {
 
 	cases := []spec{
 		{
-			name:    "Success/NoAttributes",
-			expDesc: descs,
+			name: "Success/NoAttributes",
+			expDesc: []ocispec.Descriptor{
+				{
+					MediaType: ocispec.MediaTypeImageLayerGzip,
+					Digest:    "sha256:84f48921e4ed2e0b370fa314a78dadd499cde260032bcfcd6c1d5089d6cc20a6",
+					Size:      2,
+					Annotations: map[string]string{
+						ocispec.AnnotationTitle: "fish.jpg",
+					},
+				},
+				{
+					MediaType: ocispec.MediaTypeImageLayerGzip,
+					Digest:    "sha256:84f48921e4ed2e0b370fa314a78dadd499cde260032bcfcd6c1d5089d6cc20456",
+					Size:      8,
+					Annotations: map[string]string{
+						ocispec.AnnotationTitle: "fish.json",
+					},
+				},
+			},
 		},
 		{
 			name: "Success/SeperatedAttributes",
@@ -123,7 +116,7 @@ func TestUpdateLayerDescriptors(t *testing.T) {
 					Size:      2,
 					Annotations: map[string]string{
 						ocispec.AnnotationTitle:         "fish.jpg",
-						uorspec.AnnotationUORAttributes: "{\"image\":true}",
+						uorspec.AnnotationUORAttributes: "{\"uor.user.attributes\":{\"image\":true,\"org.opencontainers.image.title\":\"fish.jpg\"}}",
 					},
 				},
 				{
@@ -132,7 +125,7 @@ func TestUpdateLayerDescriptors(t *testing.T) {
 					Size:      8,
 					Annotations: map[string]string{
 						ocispec.AnnotationTitle:         "fish.json",
-						uorspec.AnnotationUORAttributes: "{\"metadata\":true}",
+						uorspec.AnnotationUORAttributes: "{\"uor.user.attributes\":{\"metadata\":true,\"org.opencontainers.image.title\":\"fish.json\"}}",
 					},
 				},
 			},
@@ -154,7 +147,7 @@ func TestUpdateLayerDescriptors(t *testing.T) {
 					Size:      2,
 					Annotations: map[string]string{
 						ocispec.AnnotationTitle:         "fish.jpg",
-						uorspec.AnnotationUORAttributes: "{\"image\":true,\"publisher\":\"test\"}",
+						uorspec.AnnotationUORAttributes: "{\"uor.user.attributes\":{\"image\":true,\"org.opencontainers.image.title\":\"fish.jpg\",\"publisher\":\"test\"}}",
 					},
 				},
 				{
@@ -163,7 +156,7 @@ func TestUpdateLayerDescriptors(t *testing.T) {
 					Size:      8,
 					Annotations: map[string]string{
 						ocispec.AnnotationTitle:         "fish.json",
-						uorspec.AnnotationUORAttributes: "{\"publisher\":\"test\"}",
+						uorspec.AnnotationUORAttributes: "{\"uor.user.attributes\":{\"org.opencontainers.image.title\":\"fish.json\",\"publisher\":\"test\"}}",
 					},
 				},
 			},
@@ -172,6 +165,30 @@ func TestUpdateLayerDescriptors(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			descs := []ocispec.Descriptor{
+				{
+					MediaType: ocispec.MediaTypeImageLayerGzip,
+					Digest:    "sha256:84f48921e4ed2e0b370fa314a78dadd499cde260032bcfcd6c1d5089d6cc20a6",
+					Size:      2,
+					Annotations: map[string]string{
+						ocispec.AnnotationTitle: "fish.jpg",
+					},
+				},
+				{
+					MediaType: ocispec.MediaTypeImageLayerGzip,
+					Digest:    "sha256:84f48921e4ed2e0b370fa314a78dadd499cde260032bcfcd6c1d5089d6cc20456",
+					Size:      8,
+					Annotations: map[string]string{
+						ocispec.AnnotationTitle: "fish.json",
+					},
+				},
+			}
+			var nodes []Node
+			for _, desc := range descs {
+				node, err := NewNode(desc.Digest.String(), desc)
+				require.NoError(t, err)
+				nodes = append(nodes, *node)
+			}
 			res, err := UpdateDescriptors(nodes, c.fileAttributes)
 			if c.expError != "" {
 				require.EqualError(t, err, c.expError)

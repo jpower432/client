@@ -117,7 +117,8 @@ func AnnotationsFromAttributes(attributes map[string]json.RawMessage) (map[strin
 }
 
 // UpdateDescriptors updates descriptors with attributes from an AttributeSet. The key in the fileAttributes
-// argument can be a regular expression or the name of a single file.
+// argument can be a regular expression or the name of a single file. The descriptor and node properties are updated
+// by this method and the updated descriptors are returned.
 func UpdateDescriptors(nodes []Node, fileAttributes map[string]model.AttributeSet) ([]ocispec.Descriptor, error) {
 	var updateDescs []ocispec.Descriptor
 

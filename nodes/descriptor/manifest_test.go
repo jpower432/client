@@ -16,7 +16,7 @@ func TestResolveCollectionLinks(t *testing.T) {
 		manifest := ocispec.Artifact{
 			MediaType: ocispec.MediaTypeArtifactManifest,
 			Annotations: map[string]string{
-				AnnotationCollectionLinks: "alink",
+				uorspec.AnnotationCollectionLinks: "alink",
 			},
 		}
 		manifestJSON, err := json.Marshal(manifest)

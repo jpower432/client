@@ -10,6 +10,7 @@ import (
 
 	"github.com/uor-framework/uor-client-go/attributes"
 	"github.com/uor-framework/uor-client-go/model"
+	"github.com/uor-framework/uor-client-go/util/errlist"
 )
 
 var _ model.AttributeSet = &Properties{}
@@ -65,24 +66,27 @@ const (
 func Parse(in map[string]json.RawMessage) (*Properties, error) {
 	var out Properties
 	other := attributes.Attributes{}
+	var errs []error
 	for key, prop := range in {
 		switch key {
 		case TypeManifest:
 			var m uorspec.ManifestAttributes
 			if err := json.Unmarshal(prop, &m); err != nil {
-				return nil, ParseError{Key: key, Err: err}
+				errs = append(errs, ParseError{Key: key, Err: err})
+				continue
 			}
 			out.Manifest = &m
 		case TypeDescriptor:
 			var d uorspec.DescriptorAttributes
 			if err := json.Unmarshal(prop, &d); err != nil {
-				return nil, ParseError{Key: key, Err: err}
+				errs = append(errs, ParseError{Key: key, Err: err})
+				continue
 			}
 			out.Descriptor = &d
 		case TypeSchema:
 			var s uorspec.SchemaAttributes
 			if err := json.Unmarshal(prop, &s); err != nil {
-				return nil, ParseError{Key: key, Err: err}
+				errs = append(errs, ParseError{Key: key, Err: err})
 			}
 			out.Schema = &s
 		case TypeUser:
@@ -116,7 +120,7 @@ func Parse(in map[string]json.RawMessage) (*Properties, error) {
 			}
 
 			if err := jsonparser.ObjectEach(prop, handler); err != nil {
-				return nil, err
+				errs = append(errs, err)
 			}
 		default:
 			value, dataType, _, err := jsonparser.Get(prop)
@@ -133,23 +137,25 @@ func Parse(in map[string]json.RawMessage) (*Properties, error) {
 				// Using float for number like the standard lib
 				floatVal, err := strconv.ParseFloat(valueAsString, 64)
 				if err != nil {
-					return nil, err
+					errs = append(errs, err)
+					continue
 				}
 				attr = attributes.NewFloat(key, floatVal)
 			case jsonparser.Boolean:
 				boolVal, err := strconv.ParseBool(valueAsString)
 				if err != nil {
-					return nil, err
+					errs = append(errs, err)
 				}
 				attr = attributes.NewBool(key, boolVal)
 			case jsonparser.Null:
 				attr = attributes.NewNull(key)
 			default:
-				return nil, ParseError{Key: key, Err: errors.New("unsupported attribute type")}
+				errs = append(errs, ParseError{Key: key, Err: errors.New("unsupported attribute type")})
+				continue
 			}
 			other[attr.Key()] = attr
 		}
 	}
 	out.Others = other
-	return &out, nil
+	return &out, errlist.NewErrList(errs)
 }

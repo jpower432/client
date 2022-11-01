@@ -22,7 +22,6 @@ import (
 
 	"github.com/uor-framework/uor-client-go/cmd/client/commands/options"
 	"github.com/uor-framework/uor-client-go/log"
-	"github.com/uor-framework/uor-client-go/nodes/descriptor"
 )
 
 func TestBuildCollectionComplete(t *testing.T) {
@@ -316,7 +315,7 @@ func prepCollectionArtifacts(t *testing.T, host string) map[string]string {
 	fileContent := []byte("Hello World!\n")
 	testCollection := fmt.Sprintf("%s/test:latest", host)
 	testCollectionAnnotations := map[string]string{
-		descriptor.AnnotationSchema: "test.com/schema:latest",
+		uorspec.AnnotationSchema: "test.com/schema:latest",
 	}
 	publishFunc(fileName, testCollection, ocispec.MediaTypeImageLayer, fileContent, map[string]string{"test": "annotation"}, testCollectionAnnotations)
 

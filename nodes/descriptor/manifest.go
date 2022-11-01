@@ -12,14 +12,6 @@ import (
 )
 
 const (
-	// AnnotationSchema is the reference to the
-	// default schema of the collection.
-	AnnotationSchema = "uor.schema"
-	// AnnotationCollectionLinks references the collections
-	// that are linked to a collection node. They will only
-	// reference adjacent collection and will not descend
-	// into sub-collections.
-	AnnotationCollectionLinks = "uor.collections.linked"
 	// Separator is the value used to denote a list of
 	// schema or collection in a manifest.
 	Separator = ","
@@ -43,7 +35,7 @@ func FetchSchema(input io.Reader) (string, error) {
 		return "", err
 	}
 
-	schema, ok := manifest.Annotations[AnnotationSchema]
+	schema, ok := manifest.Annotations[uorspec.AnnotationSchema]
 	if !ok {
 		return "", ErrNoKnownSchema
 	}
@@ -82,7 +74,7 @@ func ResolveCollectionLinks(reader io.Reader) ([]string, error) {
 		if err := json.NewDecoder(&buf).Decode(&manifest); err != nil {
 			return nil, err
 		}
-		links, ok := manifest.Annotations[AnnotationCollectionLinks]
+		links, ok := manifest.Annotations[uorspec.AnnotationCollectionLinks]
 		if !ok || len(links) == 0 {
 			return nil, ErrNoCollectionLinks
 		}

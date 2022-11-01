@@ -34,7 +34,8 @@ func AttributesFromAttributeSet(set model.AttributeSet) (map[string]json.RawMess
 // FIXME(jpower432): Deduplicate the below logic from v2, if possible
 
 // UpdateDescriptors updates descriptor with attributes from an AttributeSet. The key in the fileAttributes
-// argument can be a regular expression or the name of a single file.
+// argument can be a regular expression or the name of a single file.  The descriptor and node properties are updated
+//// by this method and the updated descriptors are returned.
 func UpdateDescriptors(nodes []Node, fileAttributes map[string]model.AttributeSet) ([]uorspec.Descriptor, error) {
 	var updateDescs []uorspec.Descriptor
 
