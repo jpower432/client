@@ -15,6 +15,10 @@ import (
 
 var _ model.AttributeSet = &Properties{}
 
+// TODO(jpower432): Add a way to do key,value searching with core properties.
+// Might need a private attribute set as a cache for search that won't get marshaled into json.
+// This will require flattening key with dot notation.
+
 // Properties define all properties an UOR collection descriptor can have.
 type Properties struct {
 	Manifest   *uorspec.ManifestAttributes   `json:"uor.core.manifest,omitempty"`
@@ -23,26 +27,37 @@ type Properties struct {
 	Others     model.AttributeSet            `json:"uor.user.attributes,omitempty"`
 }
 
+// Exists checks for the existence of a key,value pair in the
+// AttributeSet in the Properties.
 func (p *Properties) Exists(attribute model.Attribute) (bool, error) {
 	return p.Others.Exists(attribute)
 }
 
+// Find searches the AttributeSet in the Properties
+// for a key.
 func (p *Properties) Find(s string) model.Attribute {
 	return p.Others.Find(s)
 }
 
+// MarshalJSON marshal an instance of Properties
+// into the JSON format.
 func (p *Properties) MarshalJSON() ([]byte, error) {
 	return json.Marshal(*p)
 }
 
+// List lists the AttributeSet attributes in the
+// Properties.
 func (p *Properties) List() map[string]model.Attribute {
 	return p.Others.List()
 }
 
+// Len returns the length of the AttributeSet
+// in the Properties.
 func (p *Properties) Len() int {
 	return p.Len()
 }
 
+// Merge merges a given AttributeSet with the descriptor AttributeSet.
 func (p *Properties) Merge(sets []model.AttributeSet) error {
 	if len(sets) == 0 {
 		return nil
@@ -63,6 +78,9 @@ const (
 	TypeUser       = "uor.user.attributes"
 )
 
+// Parse attempt to resolve attribute types in a set of json.RawMessage types
+// into known Manifest, Descriptor, and Schema types and adds unknown attributes to
+// an attribute set, if supported.
 func Parse(in map[string]json.RawMessage) (*Properties, error) {
 	var out Properties
 	other := attributes.Attributes{}
