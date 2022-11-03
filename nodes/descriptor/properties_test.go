@@ -10,7 +10,7 @@ import (
 )
 
 func TestProperties_MarshalJSON(t *testing.T) {
-	expJSON := `{"uor.core.manifest":{"registryHint":"test"},"uor.core.descriptor":{"component":{"id":"id","name":"","version":"","type":"","foundBy":"","locations":null,"licenses":null,"language":"","cpes":null,"purl":""}},"uor.user.attributes":{"name":"test","size":2}}`
+	expJSON := `{"uor.core.manifest":{"registryHint":"test"},"uor.core.descriptor":{"id":"id","name":"","version":"","type":"","foundBy":"","locations":null,"licenses":null,"language":"","cpes":null,"purl":""},"uor.user.attributes":{"name":"test","size":2}}`
 	set := attributes.Attributes{
 		"name": attributes.NewString("name", "test"),
 		"size": attributes.NewInt("size", 2),

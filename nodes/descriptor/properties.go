@@ -15,28 +15,38 @@ import (
 
 var _ model.AttributeSet = &Properties{}
 
-// TODO(jpower432): Add a way to do key,value searching with core properties.
-// Might need a private attribute set as a cache for search that won't get marshaled into json.
-// This will require flattening key with dot notation.
-
 // Properties define all properties an UOR collection descriptor can have.
 type Properties struct {
 	Manifest   *uorspec.ManifestAttributes   `json:"uor.core.manifest,omitempty"`
 	Descriptor *uorspec.DescriptorAttributes `json:"uor.core.descriptor,omitempty"`
 	Schema     *uorspec.SchemaAttributes     `json:"uor.core.schema,omitempty"`
 	Others     model.AttributeSet            `json:"uor.user.attributes,omitempty"`
+	// coreAttributeCache stores the core schema attributes as attributes flattened for
+	// searching purposes
+	coreAttributeCache model.AttributeSet
 }
 
 // Exists checks for the existence of a key,value pair in the
 // AttributeSet in the Properties.
 func (p *Properties) Exists(attribute model.Attribute) (bool, error) {
-	return p.Others.Exists(attribute)
+	exists, err := p.Others.Exists(attribute)
+	if err != nil {
+		return false, err
+	}
+	if exists {
+		return true, nil
+	}
+	return p.coreAttributeCache.Exists(attribute)
 }
 
 // Find searches the AttributeSet in the Properties
 // for a key.
 func (p *Properties) Find(s string) model.Attribute {
-	return p.Others.Find(s)
+	value := p.Others.Find(s)
+	if value != nil {
+		return value
+	}
+	return p.coreAttributeCache.Find(s)
 }
 
 // MarshalJSON marshal an instance of Properties
@@ -48,13 +58,22 @@ func (p *Properties) MarshalJSON() ([]byte, error) {
 // List lists the AttributeSet attributes in the
 // Properties.
 func (p *Properties) List() map[string]model.Attribute {
-	return p.Others.List()
+	mergedList := map[string]model.Attribute{}
+	list1 := p.Others.List()
+	list2 := p.coreAttributeCache.List()
+	for k, v := range list1 {
+		mergedList[k] = v
+	}
+	for k, v := range list2 {
+		mergedList[k] = v
+	}
+	return mergedList
 }
 
 // Len returns the length of the AttributeSet
 // in the Properties.
 func (p *Properties) Len() int {
-	return p.Len()
+	return p.Others.Len() + p.coreAttributeCache.Len()
 }
 
 // Merge merges a given AttributeSet with the descriptor AttributeSet.
@@ -84,6 +103,9 @@ const (
 func Parse(in map[string]json.RawMessage) (*Properties, error) {
 	var out Properties
 	other := attributes.Attributes{}
+
+	// Create flattened keys here
+
 	var errs []error
 	for key, prop := range in {
 		switch key {
