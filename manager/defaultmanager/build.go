@@ -14,6 +14,7 @@ import (
 
 	clientapi "github.com/uor-framework/uor-client-go/api/client/v1alpha1"
 	"github.com/uor-framework/uor-client-go/attributes"
+	"github.com/uor-framework/uor-client-go/components"
 	load "github.com/uor-framework/uor-client-go/config"
 	"github.com/uor-framework/uor-client-go/content"
 	"github.com/uor-framework/uor-client-go/model"
@@ -124,7 +125,20 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 		nodes = append(nodes, *node)
 	}
 
-	// TODO(jpower432): Fill into component information here
+	workspacePath := space.Path(".")
+	input := fmt.Sprintf("dir:%s", workspacePath)
+	inv, err := components.GenerateInventory(input, config)
+	if err != nil {
+		return "", fmt.Errorf("inventory generation for %s: %w", workspacePath, err)
+	}
+
+	invJSON, err := json.Marshal(inv)
+	if err != nil {
+		return "", err
+	}
+	fmt.Println(string(invJSON))
+
+	// SBOM generation
 	descs, err = v2.UpdateDescriptors(nodes, attributesByFile)
 	if err != nil {
 		return "", err
