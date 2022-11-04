@@ -10,6 +10,11 @@ import (
 	"github.com/uor-framework/uor-client-go/model"
 )
 
+const (
+	UnknownSchemaID   = "unknown"
+	ConvertedSchemaID = "converted"
+)
+
 // Schema representation of properties in a JSON Schema format.
 type Schema struct {
 	jsonSchema *gojsonschema.Schema

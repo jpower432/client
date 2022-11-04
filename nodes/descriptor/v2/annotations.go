@@ -11,6 +11,7 @@ import (
 
 	"github.com/uor-framework/uor-client-go/attributes"
 	"github.com/uor-framework/uor-client-go/model"
+	"github.com/uor-framework/uor-client-go/schema"
 )
 
 // AnnotationsToAttributeSet converts annotations from descriptors
@@ -38,16 +39,16 @@ func AnnotationsToAttributeSet(annotations map[string]string, skip func(string) 
 			continue
 		}
 
-		var data map[string]interface{}
-		if err := json.Unmarshal([]byte(value), &data); err != nil {
+		var jsonData map[string]interface{}
+		if err := json.Unmarshal([]byte(value), &jsonData); err != nil {
 			return set, err
 		}
-		for jKey, jVal := range data {
-			attr, err := attributes.Reflect(jKey, jVal)
+		for jsonKey, jsonVal := range jsonData {
+			attr, err := attributes.Reflect(jsonKey, jsonVal)
 			if err != nil {
 				return set, fmt.Errorf("annotation %q: error creating attribute: %w", key, err)
 			}
-			set[jKey] = attr
+			set[jsonKey] = attr
 		}
 	}
 	return set, nil
@@ -67,24 +68,11 @@ func AnnotationsFromAttributeSet(set model.AttributeSet) (map[string]string, err
 // the AnnotationsUORAttributes key is found.
 func AnnotationsToAttributes(annotations map[string]string) (map[string]json.RawMessage, error) {
 	specAttributes := map[string]json.RawMessage{}
+	extraAnnotations := map[string]string{}
 	for key, value := range annotations {
 
-		// Handle key collision. This should only occur if
-		// an annotation is set and the key also exists in the UOR
-		// specific attributes.
-		if _, exists := specAttributes[key]; exists {
-			continue
-		}
-
-		// Since annotations are in the form of map[string]string, we
-		// can just assume it is a string attribute at this point. Incorporating
-		// this into thr attribute set allows, users to pull by filename or reference name (cache).
 		if key != uorspec.AnnotationUORAttributes {
-			jsonValue, err := json.Marshal(value)
-			if err != nil {
-				return specAttributes, nil
-			}
-			specAttributes[key] = jsonValue
+			extraAnnotations[key] = value
 			continue
 		}
 
@@ -93,14 +81,22 @@ func AnnotationsToAttributes(annotations map[string]string) (map[string]json.Raw
 			return specAttributes, err
 		}
 
-		for k, v := range jsonData {
-			jsonValue, err := json.Marshal(v)
+		for jsonKey, iVal := range jsonData {
+			jsonVal, err := json.Marshal(iVal)
 			if err != nil {
 				return specAttributes, err
 			}
-			specAttributes[k] = jsonValue
+			specAttributes[jsonKey] = jsonVal
 		}
 
+	}
+
+	if len(extraAnnotations) != 0 {
+		jsonValue, err := json.Marshal(extraAnnotations)
+		if err != nil {
+			return specAttributes, nil
+		}
+		specAttributes[schema.ConvertedSchemaID] = jsonValue
 	}
 
 	return specAttributes, nil
@@ -119,7 +115,7 @@ func AnnotationsFromAttributes(attributes map[string]json.RawMessage) (map[strin
 // UpdateDescriptors updates descriptors with attributes from an AttributeSet. The key in the fileAttributes
 // argument can be a regular expression or the name of a single file. The descriptor and node properties are updated
 // by this method and the updated descriptors are returned.
-func UpdateDescriptors(nodes []Node, fileAttributes map[string]model.AttributeSet) ([]ocispec.Descriptor, error) {
+func UpdateDescriptors(nodes []Node, schemaID string, fileAttributes map[string]model.AttributeSet) ([]ocispec.Descriptor, error) {
 	var updateDescs []ocispec.Descriptor
 
 	// Base case
@@ -152,24 +148,27 @@ func UpdateDescriptors(nodes []Node, fileAttributes map[string]model.AttributeSe
 
 		var sets []model.AttributeSet
 
-		desc := node.Descriptor()
-		filename, ok := desc.Annotations[ocispec.AnnotationTitle]
-		if !ok {
+		if node.Location == "" {
 			continue
 		}
 
 		for file, set := range fileAttributes {
 			nameSearch := regexpByFilename[file]
-			if nameSearch.Match([]byte(filename)) {
+			if nameSearch.Match([]byte(node.Location)) {
 				sets = append(sets, set)
 			}
 		}
 
-		n := &node
+		desc := node.Descriptor()
 		if len(sets) > 0 {
-			if err := n.Properties.Merge(sets); err != nil {
-				return nil, fmt.Errorf("file %s: %w", filename, err)
+			merged, err := attributes.Merge(sets...)
+			if err != nil {
+				return nil, err
 			}
+			if err := node.Properties.Merge(map[string]model.AttributeSet{schemaID: merged}); err != nil {
+				return nil, fmt.Errorf("file %s: %w", node.Location, err)
+			}
+
 			mergedJSON, err := node.Properties.MarshalJSON()
 			if err != nil {
 				return nil, err

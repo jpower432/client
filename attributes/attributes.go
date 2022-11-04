@@ -135,7 +135,7 @@ func (a Attributes) Len() int {
 // is found while merging, an error will be thrown if the value kind is
 // not the same. If the value types are the same, the first set will take
 // precedent.
-func Merge(sets []model.AttributeSet) (model.AttributeSet, error) {
+func Merge(sets ...model.AttributeSet) (model.AttributeSet, error) {
 	newSet := Attributes{}
 
 	if len(sets) == 0 {

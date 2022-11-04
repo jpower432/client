@@ -7,10 +7,11 @@ import (
 	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
 
 	"github.com/uor-framework/uor-client-go/attributes"
+	"github.com/uor-framework/uor-client-go/model"
 )
 
 func TestProperties_MarshalJSON(t *testing.T) {
-	expJSON := `{"uor.core.manifest":{"registryHint":"test"},"uor.core.descriptor":{"id":"id","name":"","version":"","type":"","foundBy":"","locations":null,"licenses":null,"language":"","cpes":null,"purl":""},"uor.user.attributes":{"name":"test","size":2}}`
+	expJSON := `{"core-descriptor":{"id":"id","name":"","version":"","type":"","foundBy":"","locations":null,"licenses":null,"language":"","cpes":null,"purl":""},"core-manifest":{"registryHint":"test"},"test":{"name":"test","size":2}}`
 	set := attributes.Attributes{
 		"name": attributes.NewString("name", "test"),
 		"size": attributes.NewInt("size", 2),
@@ -24,7 +25,7 @@ func TestProperties_MarshalJSON(t *testing.T) {
 				ID: "id",
 			},
 		},
-		Others: set,
+		Others: map[string]model.AttributeSet{"test": set},
 	}
 	propsJSON, err := props.MarshalJSON()
 	require.NoError(t, err)

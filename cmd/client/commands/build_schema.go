@@ -13,6 +13,7 @@ import (
 
 	load "github.com/uor-framework/uor-client-go/config"
 	"github.com/uor-framework/uor-client-go/content/layout"
+	"github.com/uor-framework/uor-client-go/nodes/descriptor"
 	"github.com/uor-framework/uor-client-go/registryclient/orasclient"
 	"github.com/uor-framework/uor-client-go/schema"
 	"github.com/uor-framework/uor-client-go/util/examples"
@@ -112,9 +113,11 @@ func (o *BuildSchemaOptions) Run(ctx context.Context) error {
 	}
 
 	manifestAnnotations := map[string]string{}
-	schemaAttr := uorspec.SchemaAttributes{
-		ID:          config.Schema.ID,
-		Description: config.Schema.Description,
+	schemaAttr := descriptor.Properties{
+		Schema: &uorspec.SchemaAttributes{
+			ID:          config.Schema.ID,
+			Description: config.Schema.Description,
+		},
 	}
 	coreSchemaJSON, err := json.Marshal(schemaAttr)
 	if err != nil {

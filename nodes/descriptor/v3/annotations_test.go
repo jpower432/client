@@ -24,11 +24,10 @@ func TestAttributesFromAttributeSet(t *testing.T) {
 }
 
 func TestAttributesToAttributeSet(t *testing.T) {
-	expJSON := `{"uor.user.attributes":{"kind":"jpg","name":"fish.jpg","size":2}}`
+	expJSON := `{"test":{"kind":"jpg","name":"fish.jpg","size":2}}`
 	attrs := map[string]json.RawMessage{
-		"kind": []byte("\"jpg\""),
-		"name": []byte("\"fish.jpg\""),
-		"size": []byte("2"),
+
+		"test": []byte(`{"kind":"jpg","name":"fish.jpg","size":2}`),
 	}
 	set, err := AttributesToAttributeSet(attrs)
 	require.NoError(t, err)

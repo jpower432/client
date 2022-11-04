@@ -63,24 +63,27 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 
 	// Merge the sets to ensure the dataset configuration
 	// meet the schema require.
-	mergedSet, err := attributes.Merge(sets)
+	mergedSet, err := attributes.Merge(sets...)
 	if err != nil {
 		return "", fmt.Errorf("failed to merge attributes :%w", err)
 	}
 
 	// If a schema is present, pull it and do the validation before
-	// processing the files to get quick feedback to the user.
+	// processing the files to get quick feedback to the user. Also, collection the schema ID
+	// to place in the descriptor properties.
+	schemaID := schema.UnknownSchemaID
 	collectionManifestAnnotations := map[string]string{}
 	if config.Collection.SchemaAddress != "" {
 		d.logger.Infof("Validating dataset configuration against schema %s", config.Collection.SchemaAddress)
 		collectionManifestAnnotations[uorspec.AnnotationSchema] = config.Collection.SchemaAddress
 
-		_, _, err = client.Pull(ctx, config.Collection.SchemaAddress, d.store)
+		_, _, err := client.Pull(ctx, config.Collection.SchemaAddress, d.store)
 		if err != nil {
 			return "", fmt.Errorf("error configuring client: %v", err)
 		}
 
-		schemaDoc, err := fetchJSONSchema(ctx, config.Collection.SchemaAddress, d.store)
+		var schemaDoc schema.Schema
+		schemaDoc, schemaID, err = fetchJSONSchema(ctx, config.Collection.SchemaAddress, d.store)
 		if err != nil {
 			return "", err
 		}
@@ -116,30 +119,35 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 		return "", err
 	}
 
+	// Gather workspace file metadata
+	input := fmt.Sprintf("dir:%s", ".")
+	inv, err := components.GenerateInventory(input, config)
+	if err != nil {
+		return "", fmt.Errorf("inventory generation for %s: %w", space.Path(), err)
+	}
+
+	// Create nodes and update node properties
 	var nodes []v2.Node
 	for _, desc := range descs {
-		node, err := v2.NewNode(desc.Digest.String(), desc)
+		location, ok := desc.Annotations[ocispec.AnnotationTitle]
+		if !ok {
+			continue
+		}
+		// Using location as ID in this case because it is unique and
+		// the digest may not be.
+		node, err := v2.NewNode(location, desc)
 		if err != nil {
+			return "", err
+		}
+		node.Location = location
+		if err := components.InventoryToProperties(*inv, location, node.Properties); err != nil {
 			return "", err
 		}
 		nodes = append(nodes, *node)
 	}
 
-	workspacePath := space.Path(".")
-	input := fmt.Sprintf("dir:%s", workspacePath)
-	inv, err := components.GenerateInventory(input, config)
-	if err != nil {
-		return "", fmt.Errorf("inventory generation for %s: %w", workspacePath, err)
-	}
-
-	invJSON, err := json.Marshal(inv)
-	if err != nil {
-		return "", err
-	}
-	fmt.Println(string(invJSON))
-
-	// SBOM generation
-	descs, err = v2.UpdateDescriptors(nodes, attributesByFile)
+	// Add user provided attributes to node properties
+	descs, err = v2.UpdateDescriptors(nodes, schemaID, attributesByFile)
 	if err != nil {
 		return "", err
 	}
@@ -172,8 +180,11 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 	if err != nil {
 		return "", err
 	}
-	coreSchema := uorspec.ManifestAttributes{
-		RegistryHint: ref.Registry,
+
+	coreSchema := descriptor.Properties{
+		Manifest: &uorspec.ManifestAttributes{
+			RegistryHint: ref.Registry,
+		},
 	}
 	coreSchemaJSON, err := json.Marshal(coreSchema)
 	if err != nil {
@@ -195,24 +206,39 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 }
 
 // fetchJSONSchema returns a schema type from a content store and a schema address.
-func fetchJSONSchema(ctx context.Context, schemaAddress string, store content.AttributeStore) (schema.Schema, error) {
+func fetchJSONSchema(ctx context.Context, schemaAddress string, store content.AttributeStore) (schema.Schema, string, error) {
 	desc, err := store.AttributeSchema(ctx, schemaAddress)
 	if err != nil {
-		return schema.Schema{}, err
+		return schema.Schema{}, "", err
+	}
+
+	var schemaID string
+	if desc.Annotations != nil {
+		attr, ok := desc.Annotations[uorspec.AnnotationUORAttributes]
+		if ok {
+			var schemaSpec uorspec.SchemaAttributes
+			if err := json.Unmarshal([]byte(attr), schemaSpec); err != nil {
+				return schema.Schema{}, "", err
+			}
+			schemaID = schemaSpec.ID
+		}
+
 	}
 	schemaReader, err := store.Fetch(ctx, desc)
 	if err != nil {
-		return schema.Schema{}, fmt.Errorf("error fetching schema from store: %w", err)
+		return schema.Schema{}, "", fmt.Errorf("error fetching schema from store: %w", err)
 	}
 	schemaBytes, err := ioutil.ReadAll(schemaReader)
 	if err != nil {
-		return schema.Schema{}, err
+		return schema.Schema{}, "", err
 	}
 	loader, err := schema.FromBytes(schemaBytes)
 	if err != nil {
-		return schema.Schema{}, err
+		return schema.Schema{}, "", err
 	}
-	return schema.New(loader)
+
+	sc, err := schema.New(loader)
+	return sc, schemaID, err
 }
 
 // gatherLinkedCollections create null descriptors to denotes linked collections in a manifest with schema link information.

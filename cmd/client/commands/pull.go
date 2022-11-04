@@ -118,6 +118,7 @@ func (o *PullOptions) Run(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+
 		matcher = attributeSet.List()
 	}
 
