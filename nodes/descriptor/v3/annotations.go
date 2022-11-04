@@ -6,9 +6,9 @@ import (
 	"regexp"
 	"strings"
 
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
 
+	"github.com/uor-framework/uor-client-go/attributes"
 	"github.com/uor-framework/uor-client-go/model"
 	"github.com/uor-framework/uor-client-go/nodes/descriptor"
 )
@@ -36,7 +36,7 @@ func AttributesFromAttributeSet(set model.AttributeSet) (map[string]json.RawMess
 // UpdateDescriptors updates descriptor with attributes from an AttributeSet. The key in the fileAttributes
 // argument can be a regular expression or the name of a single file.  The descriptor and node properties are updated
 //// by this method and the updated descriptors are returned.
-func UpdateDescriptors(nodes []Node, fileAttributes map[string]model.AttributeSet) ([]uorspec.Descriptor, error) {
+func UpdateDescriptors(nodes []Node, schemaID string, fileAttributes map[string]model.AttributeSet) ([]uorspec.Descriptor, error) {
 	var updateDescs []uorspec.Descriptor
 
 	// Base case
@@ -68,22 +68,26 @@ func UpdateDescriptors(nodes []Node, fileAttributes map[string]model.AttributeSe
 	for _, node := range nodes {
 
 		var sets []model.AttributeSet
-		desc := node.Descriptor()
-		filename, ok := desc.Annotations[ocispec.AnnotationTitle]
-		if !ok {
+
+		if node.Location == "" {
 			continue
 		}
 
 		for file, set := range fileAttributes {
 			nameSearch := regexpByFilename[file]
-			if nameSearch.Match([]byte(filename)) {
+			if nameSearch.Match([]byte(node.Location)) {
 				sets = append(sets, set)
 			}
 		}
 
+		desc := node.Descriptor()
 		if len(sets) > 0 {
-			if err := node.Properties.Merge(sets); err != nil {
-				return nil, fmt.Errorf("file %s: %w", filename, err)
+			merged, err := attributes.Merge(sets...)
+			if err != nil {
+				return nil, err
+			}
+			if err := node.Properties.Merge(map[string]model.AttributeSet{schemaID: merged}); err != nil {
+				return nil, fmt.Errorf("file %s: %w", node.Location, err)
 			}
 			mergedAttributes, err := AttributesFromAttributeSet(node.Properties)
 			if err != nil {

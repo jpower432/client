@@ -116,7 +116,7 @@ func TestUpdateLayerDescriptors(t *testing.T) {
 					Size:      2,
 					Annotations: map[string]string{
 						ocispec.AnnotationTitle:         "fish.jpg",
-						uorspec.AnnotationUORAttributes: "{\"uor.user.attributes\":{\"image\":true,\"org.opencontainers.image.title\":\"fish.jpg\"}}",
+						uorspec.AnnotationUORAttributes: "{\"converted\":{\"org.opencontainers.image.title\":\"fish.jpg\"},\"myschema\":{\"image\":true}}",
 					},
 				},
 				{
@@ -125,7 +125,7 @@ func TestUpdateLayerDescriptors(t *testing.T) {
 					Size:      8,
 					Annotations: map[string]string{
 						ocispec.AnnotationTitle:         "fish.json",
-						uorspec.AnnotationUORAttributes: "{\"uor.user.attributes\":{\"metadata\":true,\"org.opencontainers.image.title\":\"fish.json\"}}",
+						uorspec.AnnotationUORAttributes: "{\"converted\":{\"org.opencontainers.image.title\":\"fish.json\"},\"myschema\":{\"metadata\":true}}",
 					},
 				},
 			},
@@ -147,7 +147,7 @@ func TestUpdateLayerDescriptors(t *testing.T) {
 					Size:      2,
 					Annotations: map[string]string{
 						ocispec.AnnotationTitle:         "fish.jpg",
-						uorspec.AnnotationUORAttributes: "{\"uor.user.attributes\":{\"image\":true,\"org.opencontainers.image.title\":\"fish.jpg\",\"publisher\":\"test\"}}",
+						uorspec.AnnotationUORAttributes: "{\"converted\":{\"org.opencontainers.image.title\":\"fish.jpg\"},\"myschema\":{\"image\":true,\"publisher\":\"test\"}}",
 					},
 				},
 				{
@@ -156,7 +156,7 @@ func TestUpdateLayerDescriptors(t *testing.T) {
 					Size:      8,
 					Annotations: map[string]string{
 						ocispec.AnnotationTitle:         "fish.json",
-						uorspec.AnnotationUORAttributes: "{\"uor.user.attributes\":{\"org.opencontainers.image.title\":\"fish.json\",\"publisher\":\"test\"}}",
+						uorspec.AnnotationUORAttributes: "{\"converted\":{\"org.opencontainers.image.title\":\"fish.json\"},\"myschema\":{\"publisher\":\"test\"}}",
 					},
 				},
 			},
@@ -187,9 +187,10 @@ func TestUpdateLayerDescriptors(t *testing.T) {
 			for _, desc := range descs {
 				node, err := NewNode(desc.Digest.String(), desc)
 				require.NoError(t, err)
+				node.Location = desc.Annotations[ocispec.AnnotationTitle]
 				nodes = append(nodes, *node)
 			}
-			res, err := UpdateDescriptors(nodes, c.fileAttributes)
+			res, err := UpdateDescriptors(nodes, "myschema", c.fileAttributes)
 			if c.expError != "" {
 				require.EqualError(t, err, c.expError)
 			} else {
