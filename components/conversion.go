@@ -56,8 +56,11 @@ func InventoryToProperties(inventory sbom.SBOM, path string, properties *descrip
 			string(descriptorPkg.MetadataType): additionalMetadata,
 		},
 	}
-	properties.Descriptor.Component = component
 
+	if properties.Descriptor == nil {
+		properties.Descriptor = &uorspec.DescriptorAttributes{}
+	}
+	properties.Descriptor.Component = component
 	return nil
 }
 
