@@ -118,14 +118,6 @@ func AnnotationsFromAttributes(attributes map[string]json.RawMessage) (map[strin
 func UpdateDescriptors(nodes []Node, schemaID string, fileAttributes map[string]model.AttributeSet) ([]ocispec.Descriptor, error) {
 	var updateDescs []ocispec.Descriptor
 
-	// Base case
-	if len(fileAttributes) == 0 {
-		for _, node := range nodes {
-			updateDescs = append(updateDescs, node.Descriptor())
-		}
-		return updateDescs, nil
-	}
-
 	// Process each key into a regular expression and store it.
 	regexpByFilename := map[string]*regexp.Regexp{}
 	for file := range fileAttributes {
@@ -168,13 +160,12 @@ func UpdateDescriptors(nodes []Node, schemaID string, fileAttributes map[string]
 			if err := node.Properties.Merge(map[string]model.AttributeSet{schemaID: merged}); err != nil {
 				return nil, fmt.Errorf("file %s: %w", node.Location, err)
 			}
-
-			mergedJSON, err := node.Properties.MarshalJSON()
-			if err != nil {
-				return nil, err
-			}
-			desc.Annotations[uorspec.AnnotationUORAttributes] = string(mergedJSON)
 		}
+		mergedJSON, err := node.Properties.MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+		desc.Annotations[uorspec.AnnotationUORAttributes] = string(mergedJSON)
 
 		updateDescs = append(updateDescs, desc)
 	}
