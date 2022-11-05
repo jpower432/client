@@ -3,6 +3,7 @@ package descriptor
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/buger/jsonparser"
@@ -216,7 +217,7 @@ func Parse(in map[string]json.RawMessage) (*Properties, error) {
 			}
 
 			if err := jsonparser.ObjectEach(prop, handler); err != nil {
-				errs = append(errs, err)
+				errs = append(errs, fmt.Errorf("key %s: %w", key, err))
 			}
 
 			other[key] = set
