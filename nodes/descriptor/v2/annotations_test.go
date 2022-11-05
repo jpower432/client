@@ -86,7 +86,8 @@ func TestUpdateLayerDescriptors(t *testing.T) {
 					Digest:    "sha256:84f48921e4ed2e0b370fa314a78dadd499cde260032bcfcd6c1d5089d6cc20a6",
 					Size:      2,
 					Annotations: map[string]string{
-						ocispec.AnnotationTitle: "fish.jpg",
+						ocispec.AnnotationTitle:         "fish.jpg",
+						uorspec.AnnotationUORAttributes: "{\"converted\":{\"org.opencontainers.image.title\":\"fish.jpg\"}}",
 					},
 				},
 				{
@@ -94,7 +95,8 @@ func TestUpdateLayerDescriptors(t *testing.T) {
 					Digest:    "sha256:84f48921e4ed2e0b370fa314a78dadd499cde260032bcfcd6c1d5089d6cc20456",
 					Size:      8,
 					Annotations: map[string]string{
-						ocispec.AnnotationTitle: "fish.json",
+						ocispec.AnnotationTitle:         "fish.json",
+						uorspec.AnnotationUORAttributes: "{\"converted\":{\"org.opencontainers.image.title\":\"fish.json\"}}",
 					},
 				},
 			},

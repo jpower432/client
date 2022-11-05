@@ -39,14 +39,6 @@ func AttributesFromAttributeSet(set model.AttributeSet) (map[string]json.RawMess
 func UpdateDescriptors(nodes []Node, schemaID string, fileAttributes map[string]model.AttributeSet) ([]uorspec.Descriptor, error) {
 	var updateDescs []uorspec.Descriptor
 
-	// Base case
-	if len(fileAttributes) == 0 {
-		for _, node := range nodes {
-			updateDescs = append(updateDescs, node.Descriptor())
-		}
-		return updateDescs, nil
-	}
-
 	// Process each key into a regular expression and store it.
 	regexpByFilename := map[string]*regexp.Regexp{}
 	for file := range fileAttributes {
@@ -89,13 +81,12 @@ func UpdateDescriptors(nodes []Node, schemaID string, fileAttributes map[string]
 			if err := node.Properties.Merge(map[string]model.AttributeSet{schemaID: merged}); err != nil {
 				return nil, fmt.Errorf("file %s: %w", node.Location, err)
 			}
-			mergedAttributes, err := AttributesFromAttributeSet(node.Properties)
-			if err != nil {
-				return nil, err
-			}
-			desc.Attributes = mergedAttributes
 		}
-
+		mergedAttributes, err := AttributesFromAttributeSet(node.Properties)
+		if err != nil {
+			return nil, err
+		}
+		desc.Attributes = mergedAttributes
 		updateDescs = append(updateDescs, desc)
 	}
 	return updateDescs, nil

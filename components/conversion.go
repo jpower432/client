@@ -20,7 +20,7 @@ func InventoryToProperties(inventory sbom.SBOM, path string, properties *descrip
 	pkgs := catalog.PackagesByPath(path)
 	pkgLen := len(pkgs)
 	if pkgLen == 0 || pkgLen > 1 {
-		return fmt.Errorf("incorrect number of components found, expected 1, got %d", pkgLen)
+		return fmt.Errorf("incorrect number of components found for %s, expected 1, got %d", path, pkgLen)
 	}
 	descriptorPkg := pkgs[0]
 	var cpes = make([]string, len(descriptorPkg.CPEs))
