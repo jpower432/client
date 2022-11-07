@@ -92,20 +92,6 @@ func (a Attributes) Exists(input model.Attribute) (bool, error) {
 	}
 }
 
-// AsJSON returns a JSON formatted string representation of the
-// attribute set. If the values are not valid, nil is returned.
-func (a Attributes) AsJSON() (json.RawMessage, error) {
-	j := map[string]interface{}{}
-	for key, value := range a {
-		j[key] = value.AsAny()
-	}
-	jsonBytes, err := json.Marshal(j)
-	if err != nil {
-		return nil, err
-	}
-	return jsonBytes, nil
-}
-
 // MarshalJSON returns a JSON formatted string representation of the
 // attribute set.
 func (a Attributes) MarshalJSON() ([]byte, error) {
