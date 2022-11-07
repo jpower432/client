@@ -14,7 +14,7 @@ import (
 	"github.com/uor-framework/uor-client-go/util/errlist"
 )
 
-// TODO(jpower432): Make core types queryable.
+// OUESTION(jpower432): Would filtering descriptors for core attribute be helpful at the client level?
 
 var _ model.AttributeSet = &Properties{}
 
@@ -86,7 +86,7 @@ func (p *Properties) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 
-	// Add attribute to the map with overriding struct fields
+	// Add attribute to the map without overriding struct fields
 	for key, value := range p.Others {
 		if _, ok := mapping[key]; ok {
 			continue
