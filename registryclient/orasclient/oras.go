@@ -3,6 +3,7 @@ package orasclient
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -26,6 +27,7 @@ import (
 	collectionloader "github.com/uor-framework/uor-client-go/nodes/collection/loader"
 	"github.com/uor-framework/uor-client-go/nodes/descriptor/v2"
 	"github.com/uor-framework/uor-client-go/registryclient"
+	"github.com/uor-framework/uor-client-go/registryclient/orasclient/internal/attributequeries"
 	"github.com/uor-framework/uor-client-go/registryclient/orasclient/internal/cache"
 )
 
@@ -137,6 +139,20 @@ func (c *orasClient) LoadCollection(ctx context.Context, reference string) (coll
 	co.Location = reference
 	c.collections.Store(reference, *co)
 	return *co, nil
+}
+
+// ResolveAttributeQuery queries for the attribute endpoint in a v3 registry service.
+func (c *orasClient) ResolveAttributeQuery(ctx context.Context, registryHost string, attributes json.RawMessage) (ocispec.Index, error) {
+	var index ocispec.Index
+
+	results, err := attributequeries.QueryForAttributes(ctx, registryHost, attributes, c.authClient, c.plainHTTP)
+	if err != nil {
+		return index, err
+	}
+	if err := json.NewDecoder(results).Decode(&index); err != nil {
+		return index, err
+	}
+	return index, nil
 }
 
 // Pull performs a copy of OCI artifacts to a local location from a remote location.
