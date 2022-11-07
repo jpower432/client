@@ -1,14 +1,10 @@
-package commands
+package version
 
 import (
-	"os"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
-
-	"github.com/uor-framework/uor-client-go/cmd/client/commands/options"
 )
 
 func TestGetVersion(t *testing.T) {
@@ -18,7 +14,6 @@ func TestGetVersion(t *testing.T) {
 		testCommit    string
 		testDate      string
 		testBuildData string
-		opts          *options.Common
 		expError      string
 		assertFunc    func(string) bool
 	}
@@ -26,24 +21,12 @@ func TestGetVersion(t *testing.T) {
 	cases := []spec{
 		{
 			name: "Valid/NoVariablesSet",
-			opts: &options.Common{
-				IOStreams: genericclioptions.IOStreams{
-					In:     os.Stdin,
-					ErrOut: os.Stderr,
-				},
-			},
 			assertFunc: func(s string) bool {
 				return strings.Contains(s, "v0.0.0-unknown")
 			},
 		},
 		{
-			name: "Valid/VariablesSet",
-			opts: &options.Common{
-				IOStreams: genericclioptions.IOStreams{
-					In:     os.Stdin,
-					ErrOut: os.Stderr,
-				},
-			},
+			name:        "Valid/VariablesSet",
 			testVersion: "v0.0.1",
 			testCommit:  "commit",
 			testDate:    "today",
@@ -52,13 +35,7 @@ func TestGetVersion(t *testing.T) {
 			},
 		},
 		{
-			name: "Valid/VariablesSetWithBuildData",
-			opts: &options.Common{
-				IOStreams: genericclioptions.IOStreams{
-					In:     os.Stdin,
-					ErrOut: os.Stderr,
-				},
-			},
+			name:          "Valid/VariablesSetWithBuildData",
 			testVersion:   "v0.0.1",
 			testCommit:    "commit",
 			testDate:      "today",
@@ -72,19 +49,17 @@ func TestGetVersion(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			out := new(strings.Builder)
-			c.opts.IOStreams.Out = out
 			if c.testVersion != "" {
 				version = c.testVersion
 			}
 			buildDate = c.testDate
 			commit = c.testCommit
 			buildData = c.testBuildData
-			err := getVersion(c.opts)
+			err := GetVersion(out)
 			if c.expError != "" {
 				require.EqualError(t, err, c.expError)
 			} else {
 				require.NoError(t, err)
-				t.Log(out.String())
 				require.True(t, c.assertFunc(out.String()))
 			}
 		})

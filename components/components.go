@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/anchore/syft/cmd/syft/cli/eventloop"
 	"github.com/anchore/syft/syft/artifact"
@@ -9,10 +10,12 @@ import (
 	"github.com/anchore/syft/syft/source"
 
 	clientapi "github.com/uor-framework/uor-client-go/api/client/v1alpha1"
+	"github.com/uor-framework/uor-client-go/version"
 )
 
 const ApplicationName = "uor"
 
+// GenerateInventory generates an inventory based on input and DatasetConfiguration information.
 func GenerateInventory(input string, config clientapi.DataSetConfiguration) (*sbom.SBOM, error) {
 	si, err := source.ParseInput(input, config.Collection.Platform, true)
 	if err != nil {
@@ -38,11 +41,15 @@ func generateSBOM(src *source.Source, config clientapi.DataSetConfiguration) (*s
 		return nil, err
 	}
 
+	versionBuilder := new(strings.Builder)
+	if err := version.GetVersion(versionBuilder); err != nil {
+		return nil, err
+	}
 	s := sbom.SBOM{
 		Source: src.Metadata,
 		Descriptor: sbom.Descriptor{
 			Name:          ApplicationName,
-			Version:       "",
+			Version:       versionBuilder.String(),
 			Configuration: config,
 		},
 	}

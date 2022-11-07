@@ -2,6 +2,7 @@ package registryclient
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -32,6 +33,12 @@ type Remote interface {
 	GetContent(context.Context, string, ocispec.Descriptor) ([]byte, error)
 	// LoadCollection loads a collection from a remote reference.
 	LoadCollection(context.Context, string) (collection.Collection, error)
+	AttributeFinder
+}
+
+// AttributeFinder resolve attribute queries for v3 compatible registries.
+type AttributeFinder interface {
+	ResolveAttributeQuery(context.Context, string, json.RawMessage) (ocispec.Index, error)
 }
 
 // Local defines methods to interact with OCI artifacts
