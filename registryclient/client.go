@@ -2,7 +2,6 @@ package registryclient
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -38,7 +37,7 @@ type Remote interface {
 
 // AttributeFinder resolve attribute queries for v3 compatible registries.
 type AttributeFinder interface {
-	ResolveAttributeQuery(context.Context, string, json.RawMessage) (ocispec.Index, error)
+	ResolveAttributeQuery(context.Context, string, ocispec.Descriptor) (ocispec.Index, error)
 }
 
 // Local defines methods to interact with OCI artifacts
@@ -69,4 +68,7 @@ type DescriptorAdder interface {
 	// AddManifest creates and stores a manifest for an image reference.
 	// This is generated from the config descriptor and artifact descriptors.
 	AddManifest(context.Context, string, ocispec.Descriptor, map[string]string, ...ocispec.Descriptor) (ocispec.Descriptor, error)
+	// AddIndex creates and stores an index manifest for an image reference.
+	// This is generated from the config descriptor and artifact descriptors.
+	AddIndex(context.Context, string, map[string]string, ...ocispec.Descriptor) (ocispec.Descriptor, error)
 }

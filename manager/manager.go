@@ -14,7 +14,7 @@ import (
 type Manager interface {
 	// Build builds collection from input and store it in the underlying content store.
 	// If successful, the root descriptor is returned.
-	Build(ctx context.Context, source workspace.Workspace, config clientapi.DataSetConfiguration, destination string, client registryclient.Client) (string, error)
+	Build(ctx context.Context, source workspace.Workspace, config clientapi.DataSetConfiguration, destination string, client registryclient.Client) ([]string, error)
 	// Push pushes collection to a remote location from the underlying content store.
 	// If successful, the root descriptor is returned.
 	Push(ctx context.Context, destination string, remote registryclient.Remote) (string, error)

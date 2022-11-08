@@ -113,6 +113,32 @@ func (c *orasClient) AddManifest(ctx context.Context, ref string, configDesc oci
 	return manifestDesc, c.artifactStore.Tag(ctx, manifestDesc, ref)
 }
 
+// AddIndex creates and stores am index manifest.
+func (c *orasClient) AddIndex(ctx context.Context, ref string, manifestAnnotations map[string]string, descriptors ...ocispec.Descriptor) (ocispec.Descriptor, error) {
+	if err := c.checkFileStore(); err != nil {
+		return ocispec.Descriptor{}, err
+	}
+	if descriptors == nil {
+		descriptors = []ocispec.Descriptor{}
+	}
+
+	// Keep descriptor order deterministic
+	sort.Slice(descriptors, func(i, j int) bool {
+		return descriptors[i].Digest < descriptors[j].Digest
+	})
+
+	var packOpts PackOptions
+	packOpts.ManifestAnnotations = manifestAnnotations
+	packOpts.DisableTimestamp = true
+
+	manifestDesc, err := PackAggregate(ctx, c.artifactStore, descriptors, packOpts)
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+
+	return manifestDesc, c.artifactStore.Tag(ctx, manifestDesc, ref)
+}
+
 // Save saves the OCI artifact to local store location (e.g. cache)
 func (c *orasClient) Save(ctx context.Context, ref string, store content.Store) (ocispec.Descriptor, error) {
 	return oras.Copy(ctx, c.artifactStore, ref, store, ref, c.copyOpts)
@@ -142,8 +168,18 @@ func (c *orasClient) LoadCollection(ctx context.Context, reference string) (coll
 }
 
 // ResolveAttributeQuery queries for the attribute endpoint in a v3 registry service.
-func (c *orasClient) ResolveAttributeQuery(ctx context.Context, registryHost string, attributes json.RawMessage) (ocispec.Index, error) {
+func (c *orasClient) ResolveAttributeQuery(ctx context.Context, registryHost string, descriptor ocispec.Descriptor) (ocispec.Index, error) {
 	var index ocispec.Index
+
+	node, err := v2.NewNode(descriptor.Digest.String(), descriptor)
+	if err != nil {
+		return ocispec.Index{}, err
+	}
+
+	attributes, err := node.Properties.MarshalJSON()
+	if err != nil {
+		return ocispec.Index{}, err
+	}
 
 	results, err := attributequeries.QueryForAttributes(ctx, registryHost, attributes, c.authClient, c.plainHTTP)
 	if err != nil {

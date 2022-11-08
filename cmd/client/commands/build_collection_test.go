@@ -199,28 +199,6 @@ func TestBuildCollectionRun(t *testing.T) {
 			},
 		},
 		{
-			name: "Failure/LinksHasNoSchema",
-			opts: &BuildCollectionOptions{
-				BuildOptions: &BuildOptions{
-					Common: &options.Common{
-						IOStreams: genericclioptions.IOStreams{
-							Out:    os.Stdout,
-							In:     os.Stdin,
-							ErrOut: os.Stderr,
-						},
-						Logger: testlogr,
-					},
-					Destination: fmt.Sprintf("%s/client-failnochema:latest", u.Host),
-				},
-				DSConfig: "./testdata/configs/dataset-config-invalidlinks.yaml",
-				RootDir:  "./testdata/multi-level-workspace",
-				Remote: options.Remote{
-					PlainHTTP: true,
-				},
-			},
-			expError: fmt.Sprintf("collection \"%s/schema-test:latest\": no schema", u.Host),
-		},
-		{
 			name: "Failure/InvalidSchema",
 			opts: &BuildCollectionOptions{
 				BuildOptions: &BuildOptions{
@@ -314,10 +292,7 @@ func prepCollectionArtifacts(t *testing.T, host string) map[string]string {
 	fileName := "hello.txt"
 	fileContent := []byte("Hello World!\n")
 	testCollection := fmt.Sprintf("%s/test:latest", host)
-	testCollectionAnnotations := map[string]string{
-		uorspec.AnnotationSchema: "test.com/schema:latest",
-	}
-	publishFunc(fileName, testCollection, ocispec.MediaTypeImageLayer, fileContent, map[string]string{"test": "annotation"}, testCollectionAnnotations)
+	publishFunc(fileName, testCollection, ocispec.MediaTypeImageLayer, fileContent, map[string]string{"test": "annotation"}, nil)
 
 	schemaName := "schema"
 	schemaContent := []byte("{\"type\":\"object\",\"properties\":{\"test\":{\"type\": \"string\"}},\"required\":[\"test\"]}")
