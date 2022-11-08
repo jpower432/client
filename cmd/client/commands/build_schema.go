@@ -102,7 +102,19 @@ func (o *BuildSchemaOptions) Run(ctx context.Context) error {
 		return err
 	}
 
-	desc, err := client.AddContent(ctx, uorspec.MediaTypeSchemaDescriptor, generatedSchema.Export(), nil)
+	schemaAnnotations := map[string]string{}
+	schemaAttr := descriptor.Properties{
+		Schema: &uorspec.SchemaAttributes{
+			ID:          config.Schema.ID,
+			Description: config.Schema.Description,
+		},
+	}
+	schemaJSON, err := json.Marshal(schemaAttr)
+	if err != nil {
+		return err
+	}
+	schemaAnnotations[uorspec.AnnotationUORAttributes] = string(schemaJSON)
+	desc, err := client.AddContent(ctx, uorspec.MediaTypeSchemaDescriptor, generatedSchema.Export(), schemaAnnotations)
 	if err != nil {
 		return err
 	}
@@ -112,19 +124,7 @@ func (o *BuildSchemaOptions) Run(ctx context.Context) error {
 		return err
 	}
 
-	manifestAnnotations := map[string]string{}
-	schemaAttr := descriptor.Properties{
-		Schema: &uorspec.SchemaAttributes{
-			ID:          config.Schema.ID,
-			Description: config.Schema.Description,
-		},
-	}
-	coreSchemaJSON, err := json.Marshal(schemaAttr)
-	if err != nil {
-		return err
-	}
-	manifestAnnotations[uorspec.AnnotationUORAttributes] = string(coreSchemaJSON)
-	_, err = client.AddManifest(ctx, o.Destination, configDesc, manifestAnnotations, desc)
+	_, err = client.AddManifest(ctx, o.Destination, configDesc, nil, desc)
 	if err != nil {
 		return err
 	}

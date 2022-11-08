@@ -14,7 +14,7 @@ import (
 	"github.com/uor-framework/uor-client-go/util/errlist"
 )
 
-// OUESTION(jpower432): Would filtering descriptors for core attribute be helpful at the client level?
+// QUESTION(jpower432): Would filtering descriptors for core attribute be helpful at the client level?
 
 var _ model.AttributeSet = &Properties{}
 

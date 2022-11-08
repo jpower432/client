@@ -149,7 +149,7 @@ func (c *orasClient) ResolveAttributeQuery(ctx context.Context, registryHost str
 	if err != nil {
 		return index, err
 	}
-	if err := json.NewDecoder(results).Decode(&index); err != nil {
+	if err := json.Unmarshal(results, &index); err != nil {
 		return index, err
 	}
 	return index, nil

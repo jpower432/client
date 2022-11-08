@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
-	"oras.land/oras-go/v2/registry"
 
 	clientapi "github.com/uor-framework/uor-client-go/api/client/v1alpha1"
 	"github.com/uor-framework/uor-client-go/attributes"
@@ -18,7 +16,6 @@ import (
 	load "github.com/uor-framework/uor-client-go/config"
 	"github.com/uor-framework/uor-client-go/content"
 	"github.com/uor-framework/uor-client-go/model"
-	"github.com/uor-framework/uor-client-go/nodes/descriptor"
 	"github.com/uor-framework/uor-client-go/nodes/descriptor/v2"
 	"github.com/uor-framework/uor-client-go/registryclient"
 	"github.com/uor-framework/uor-client-go/schema"
@@ -65,27 +62,28 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 	// meet the schema require.
 	mergedSet, err := attributes.Merge(sets...)
 	if err != nil {
-		return "", fmt.Errorf("failed to merge attributes :%w", err)
+		return "", fmt.Errorf("failed to merge attributes: %w", err)
 	}
 
 	// If a schema is present, pull it and do the validation before
 	// processing the files to get quick feedback to the user. Also, collection the schema ID
 	// to place in the descriptor properties.
 	schemaID := schema.UnknownSchemaID
-	collectionManifestAnnotations := map[string]string{}
 	if config.Collection.SchemaAddress != "" {
 		d.logger.Infof("Validating dataset configuration against schema %s", config.Collection.SchemaAddress)
-		collectionManifestAnnotations[uorspec.AnnotationSchema] = config.Collection.SchemaAddress
 
 		_, _, err := client.Pull(ctx, config.Collection.SchemaAddress, d.store)
 		if err != nil {
 			return "", fmt.Errorf("error configuring client: %v", err)
 		}
 
-		var schemaDoc schema.Schema
-		schemaDoc, schemaID, err = fetchJSONSchema(ctx, config.Collection.SchemaAddress, d.store)
+		schemaDoc, detectedschemaID, err := fetchJSONSchema(ctx, config.Collection.SchemaAddress, d.store)
 		if err != nil {
 			return "", err
+		}
+
+		if detectedschemaID != "" {
+			schemaID = detectedschemaID
 		}
 
 		valid, err := schemaDoc.Validate(mergedSet)
@@ -171,27 +169,7 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 		return "", err
 	}
 
-	// Write the root collection attributes
-	if len(linkedDescs) > 0 {
-		collectionManifestAnnotations[uorspec.AnnotationCollectionLinks] = formatLinks(config.Collection.LinkedCollections)
-	}
-
-	ref, err := registry.ParseReference(reference)
-	if err != nil {
-		return "", err
-	}
-
-	coreSchema := descriptor.Properties{
-		Manifest: &uorspec.ManifestAttributes{
-			RegistryHint: ref.Registry,
-		},
-	}
-	coreSchemaJSON, err := json.Marshal(coreSchema)
-	if err != nil {
-		return "", err
-	}
-	collectionManifestAnnotations[uorspec.AnnotationUORAttributes] = string(coreSchemaJSON)
-	_, err = client.AddManifest(ctx, reference, configDesc, collectionManifestAnnotations, descs...)
+	_, err = client.AddManifest(ctx, reference, configDesc, nil, descs...)
 	if err != nil {
 		return "", err
 	}
@@ -212,18 +190,9 @@ func fetchJSONSchema(ctx context.Context, schemaAddress string, store content.At
 		return schema.Schema{}, "", err
 	}
 
-	var schemaID string
-	if desc.Annotations != nil {
-		attr, ok := desc.Annotations[uorspec.AnnotationUORAttributes]
-		if ok {
-			var schemaSpec uorspec.SchemaAttributes
-			if err := json.Unmarshal([]byte(attr), schemaSpec); err != nil {
-				return schema.Schema{}, "", err
-			}
-			schemaID = schemaSpec.ID
-		}
+	node, err := v2.NewNode(desc.Digest.String(), desc)
+	schemaID := node.Properties.Schema.ID
 
-	}
 	schemaReader, err := store.Fetch(ctx, desc)
 	if err != nil {
 		return schema.Schema{}, "", fmt.Errorf("error fetching schema from store: %w", err)
@@ -246,13 +215,8 @@ func gatherLinkedCollections(ctx context.Context, cfg clientapi.DataSetConfigura
 	var linkedDescs []ocispec.Descriptor
 	for _, collection := range cfg.Collection.LinkedCollections {
 
-		rootSchema, err := getSchema(ctx, collection, client)
-		if err != nil {
-			return nil, fmt.Errorf("collection %q: %w", collection, err)
-		}
-
 		annotations := map[string]string{
-			uorspec.AnnotationSchema: rootSchema,
+			"link": "true",
 		}
 		// The bytes contain the collection name to keep the blobs unique within the manifest
 		desc, err := client.AddContent(ctx, ocispec.MediaTypeImageLayer, []byte(collection), annotations)
@@ -262,40 +226,4 @@ func gatherLinkedCollections(ctx context.Context, cfg clientapi.DataSetConfigura
 		linkedDescs = append(linkedDescs, desc)
 	}
 	return linkedDescs, nil
-}
-
-// getSchema retrieves all schema information for a given reference.
-func getSchema(ctx context.Context, reference string, client registryclient.Remote) (string, error) {
-	_, manBytes, err := client.GetManifest(ctx, reference)
-	if err != nil {
-		return "", err
-	}
-	defer manBytes.Close()
-	return descriptor.FetchSchema(manBytes)
-}
-
-func formatLinks(links []string) string {
-	n := len(links)
-	switch {
-	case n == 1:
-		return links[0]
-	case n > 1:
-		dedupLinks := deduplicate(links)
-		return strings.Join(dedupLinks, descriptor.Separator)
-	default:
-		return ""
-	}
-}
-
-func deduplicate(in []string) []string {
-	links := map[string]struct{}{}
-	var out []string
-	for _, l := range in {
-		if _, ok := links[l]; ok {
-			continue
-		}
-		links[l] = struct{}{}
-		out = append(out, l)
-	}
-	return out
 }
