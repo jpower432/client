@@ -4,14 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
-func QueryForAttributes(ctx context.Context, registryHost string, query json.RawMessage, client *auth.Client, plainHTTP bool) (io.Reader, error) {
+func QueryForAttributes(ctx context.Context, registryHost string, query json.RawMessage, client *auth.Client, plainHTTP bool) ([]byte, error) {
 	attributeURL, err := constructAttributesURL(registryHost, plainHTTP)
 	if err != nil {
 		return nil, err
@@ -43,7 +43,7 @@ func QueryForAttributes(ctx context.Context, registryHost string, query json.Raw
 	if resp.StatusCode != http.StatusOK {
 		return nil, err
 	}
-	return resp.Body, nil
+	return ioutil.ReadAll(resp.Body)
 }
 
 func constructAttributesURL(baseURL string, plainHTTP bool) (*url.URL, error) {
@@ -54,7 +54,7 @@ func constructAttributesURL(baseURL string, plainHTTP bool) (*url.URL, error) {
 // buildRegistryAttributesURL builds the URL for accessing the attributes API.
 // Format: <scheme>://<registry>/v2/_attributes
 func buildRegistryAttributesURL(baseURL string, plainHTTP bool) string {
-	return fmt.Sprintf("%s://%s/v2/_attributes", buildScheme(plainHTTP), baseURL)
+	return fmt.Sprintf("%s://%s/v2/attributes", buildScheme(plainHTTP), baseURL)
 }
 
 // buildScheme returns HTTP scheme used to access the remote registry.

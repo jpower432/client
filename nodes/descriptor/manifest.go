@@ -18,30 +18,10 @@ const (
 )
 
 var (
-	// ErrNoKnownSchema denotes that no schema
-	// annotation is set on the manifest.
-	ErrNoKnownSchema = errors.New("no schema")
 	// ErrNoCollectionLinks denotes that the manifest
 	// does contain annotation that set collection links.
 	ErrNoCollectionLinks = errors.New("no collection links")
 )
-
-// TODO(jpower432): Resolve into a digest for v3
-
-// FetchSchema fetches schema information from a given input.
-func FetchSchema(input io.Reader) (string, error) {
-	var manifest ocispec.Manifest
-	if err := json.NewDecoder(input).Decode(&manifest); err != nil {
-		return "", err
-	}
-
-	schema, ok := manifest.Annotations[uorspec.AnnotationSchema]
-	if !ok {
-		return "", ErrNoKnownSchema
-	}
-
-	return schema, nil
-}
 
 // TODO(jpower432): Resolve into a query instead of slice of string
 
