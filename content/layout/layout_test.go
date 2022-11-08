@@ -321,46 +321,6 @@ func TestResolveByAttribute(t *testing.T) {
 	}
 }
 
-func TestResolveLinks(t *testing.T) {
-	type spec struct {
-		name     string
-		cacheDir string
-		ref      string
-		expRes   []string
-		expError string
-	}
-
-	cases := []spec{
-		{
-			name:     "Success/LinksFound",
-			cacheDir: "testdata/attributes",
-			ref:      "localhost:5001/test3:latest",
-			expRes:   []string{"localhost:5001/test1:latest"},
-		},
-		{
-			name:     "Failure/NoCollectionLinks",
-			cacheDir: "testdata/valid",
-			ref:      "localhost:5001/test:latest",
-			expError: "no collection links",
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			ctx := context.TODO()
-			l, err := NewWithContext(ctx, c.cacheDir)
-			require.NoError(t, err)
-			res, err := l.ResolveLinks(ctx, c.ref)
-			if c.expError != "" {
-				require.EqualError(t, err, c.expError)
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, c.expRes, res)
-			}
-		})
-	}
-}
-
 func TestAttributeSchema(t *testing.T) {
 	type spec struct {
 		name     string

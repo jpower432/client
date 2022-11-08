@@ -27,7 +27,6 @@ type PullOptions struct {
 	options.RemoteAuth
 	Source         string
 	Output         string
-	PullAll        bool
 	AttributeQuery string
 	NoVerify       bool
 }
@@ -38,13 +37,6 @@ var clientPullExamples = []examples.Example{
 		CommandString: "pull localhost:5001/test:latest",
 		Descriptions: []string{
 			"Pull collection reference.",
-		},
-	},
-	{
-		RootCommand:   filepath.Base(os.Args[0]),
-		CommandString: "pull localhost:5001/test:latest --pull-all",
-		Descriptions: []string{
-			"Pull collection reference and all linked references.",
 		},
 	},
 	{
@@ -79,7 +71,6 @@ func NewPullCmd(common *options.Common) *cobra.Command {
 
 	cmd.Flags().StringVarP(&o.Output, "output", "o", o.Output, "output location for artifacts")
 	cmd.Flags().StringVar(&o.AttributeQuery, "attributes", o.AttributeQuery, "attribute query config path")
-	cmd.Flags().BoolVar(&o.PullAll, "pull-all", o.PullAll, "pull all linked collections")
 	cmd.Flags().BoolVar(&o.NoVerify, "no-verify", o.NoVerify, "skip collection signature verification")
 
 	return cmd
@@ -159,16 +150,10 @@ func (o *PullOptions) Run(ctx context.Context) error {
 
 	manager := defaultmanager.New(cache, o.Logger)
 
-	var digests []string
-	if !o.PullAll {
-		digests, err = manager.Pull(ctx, o.Source, client, file.New(o.Output))
-	} else {
-		digests, err = manager.PullAll(ctx, o.Source, client, file.New(o.Output))
-	}
+	digests, err := manager.Pull(ctx, o.Source, client, file.New(o.Output))
 	if err != nil {
 		return err
 	}
-
 	if len(digests) == 0 {
 		o.Logger.Infof("No matching collections found for %s", o.Source)
 		return nil

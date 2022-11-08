@@ -165,6 +165,43 @@ func packImage(ctx context.Context, pusher content.Pusher, configMediaType strin
 	return manifestDesc, nil
 }
 
+func PackAggregate(ctx context.Context, pusher content.Pusher, manifests []ocispec.Descriptor, opts PackOptions) (ocispec.Descriptor, error) {
+	annotations := opts.ManifestAnnotations
+	var err error
+	if !opts.DisableTimestamp {
+		annotations, err = ensureAnnotationCreated(opts.ManifestAnnotations, ocispec.AnnotationArtifactCreated)
+		if err != nil {
+			return ocispec.Descriptor{}, err
+		}
+	}
+
+	if manifests == nil {
+		manifests = []ocispec.Descriptor{} // make it an empty array to prevent potential server-side bugs
+	}
+	manifest := ocispec.Index{
+		Versioned: specs.Versioned{
+			SchemaVersion: 2, // historical value. does not pertain to OCI or docker version
+		},
+		MediaType:   ocispec.MediaTypeImageIndex,
+		Manifests:   manifests,
+		Annotations: annotations,
+	}
+	manifestJSON, err := json.Marshal(manifest)
+	if err != nil {
+		return ocispec.Descriptor{}, fmt.Errorf("failed to marshal manifest: %w", err)
+	}
+	manifestDesc := content.NewDescriptorFromBytes(ocispec.MediaTypeImageManifest, manifestJSON)
+	// populate Annotations of the manifest into manifestDesc
+	manifestDesc.Annotations = manifest.Annotations
+
+	// push manifest
+	if err := pusher.Push(ctx, manifestDesc, bytes.NewReader(manifestJSON)); err != nil && !errors.Is(err, errdef.ErrAlreadyExists) {
+		return ocispec.Descriptor{}, fmt.Errorf("failed to push manifest: %w", err)
+	}
+
+	return manifestDesc, nil
+}
+
 // PackCollectionOptions contains parameters for PackCollection.
 type PackCollectionOptions struct {
 	// Links is the descriptor for linked artifacts.

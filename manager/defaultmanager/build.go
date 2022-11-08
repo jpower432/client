@@ -9,6 +9,7 @@ import (
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
+	"oras.land/oras-go/v2/registry"
 
 	clientapi "github.com/uor-framework/uor-client-go/api/client/v1alpha1"
 	"github.com/uor-framework/uor-client-go/attributes"
@@ -16,6 +17,7 @@ import (
 	load "github.com/uor-framework/uor-client-go/config"
 	"github.com/uor-framework/uor-client-go/content"
 	"github.com/uor-framework/uor-client-go/model"
+	"github.com/uor-framework/uor-client-go/nodes/descriptor"
 	"github.com/uor-framework/uor-client-go/nodes/descriptor/v2"
 	"github.com/uor-framework/uor-client-go/registryclient"
 	"github.com/uor-framework/uor-client-go/schema"
@@ -24,7 +26,7 @@ import (
 
 // Build builds collection from input and store it in the underlying content store.
 // If successful, the root descriptor is returned.
-func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, config clientapi.DataSetConfiguration, reference string, client registryclient.Client) (string, error) {
+func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, config clientapi.DataSetConfiguration, reference string, client registryclient.Client) ([]string, error) {
 	var files []string
 	err := space.Walk(func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -40,11 +42,11 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 		return nil
 	})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if len(files) == 0 {
-		return "", fmt.Errorf("path %q empty workspace", space.Path("."))
+		return nil, fmt.Errorf("path %q empty workspace", space.Path("."))
 	}
 
 	attributesByFile := map[string]model.AttributeSet{}
@@ -52,7 +54,7 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 	for _, file := range config.Collection.Files {
 		set, err := load.ConvertToModel(file.Attributes)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		sets = append(sets, set)
 		attributesByFile[file.File] = set
@@ -62,7 +64,7 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 	// meet the schema require.
 	mergedSet, err := attributes.Merge(sets...)
 	if err != nil {
-		return "", fmt.Errorf("failed to merge attributes: %w", err)
+		return nil, fmt.Errorf("failed to merge attributes: %w", err)
 	}
 
 	// If a schema is present, pull it and do the validation before
@@ -74,24 +76,24 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 
 		_, _, err := client.Pull(ctx, config.Collection.SchemaAddress, d.store)
 		if err != nil {
-			return "", fmt.Errorf("error configuring client: %v", err)
+			return nil, fmt.Errorf("error configuring client: %v", err)
 		}
 
-		schemaDoc, detectedschemaID, err := fetchJSONSchema(ctx, config.Collection.SchemaAddress, d.store)
+		schemaDoc, detectedSchemaID, err := fetchJSONSchema(ctx, config.Collection.SchemaAddress, d.store)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
-		if detectedschemaID != "" {
-			schemaID = detectedschemaID
+		if detectedSchemaID != "" {
+			schemaID = detectedSchemaID
 		}
 
 		valid, err := schemaDoc.Validate(mergedSet)
 		if err != nil {
-			return "", fmt.Errorf("schema validation error: %w", err)
+			return nil, fmt.Errorf("schema validation error: %w", err)
 		}
 		if !valid {
-			return "", fmt.Errorf("attributes are not valid for schema %s", config.Collection.SchemaAddress)
+			return nil, fmt.Errorf("attributes are not valid for schema %s", config.Collection.SchemaAddress)
 		}
 	}
 
@@ -100,11 +102,11 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 	// to get path correct in the description annotations.
 	cwd, err := os.Getwd()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if err := os.Chdir(space.Path()); err != nil {
-		return "", err
+		return nil, err
 	}
 	defer func() {
 		if err := os.Chdir(cwd); err != nil {
@@ -114,14 +116,14 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 
 	descs, err := client.AddFiles(ctx, "", files...)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// Gather workspace file metadata
 	input := fmt.Sprintf("dir:%s", ".")
 	inv, err := components.GenerateInventory(input, config)
 	if err != nil {
-		return "", fmt.Errorf("inventory generation for %s: %w", space.Path(), err)
+		return nil, fmt.Errorf("inventory generation for %s: %w", space.Path(), err)
 	}
 
 	// Create nodes and update node properties
@@ -135,11 +137,11 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 		// the digest may not be.
 		node, err := v2.NewNode(location, desc)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		node.Location = location
 		if err := components.InventoryToProperties(*inv, location, node.Properties); err != nil {
-			return "", err
+			return nil, err
 		}
 		nodes = append(nodes, *node)
 	}
@@ -147,40 +149,72 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 	// Add user provided attributes to node properties
 	descs, err = v2.UpdateDescriptors(nodes, schemaID, attributesByFile)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-
-	linkedDescs, err := gatherLinkedCollections(ctx, config, client)
-	if err != nil {
-		return "", err
-	}
-
-	descs = append(descs, linkedDescs...)
 
 	// Store the DataSetConfiguration file in the manifest config of the OCI artifact for
 	// later use.
 	// Artifacts don't have configs. This will have to go with the regular descriptors.
 	configJSON, err := json.Marshal(config)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	configDesc, err := client.AddContent(ctx, uorspec.MediaTypeConfiguration, configJSON, nil)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	_, err = client.AddManifest(ctx, reference, configDesc, nil, descs...)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	desc, err := client.Save(ctx, reference, d.store)
 	if err != nil {
-		return "", fmt.Errorf("client save error for reference %s: %v", reference, err)
+		return nil, fmt.Errorf("client save error for reference %s: %v", reference, err)
 	}
 	d.logger.Infof("Artifact %s built with reference name %s\n", desc.Digest, reference)
 
-	return desc.Digest.String(), nil
+	// Build index manifest
+	if len(config.Collection.LinkedCollections) != 0 {
+		d.logger.Infof("Processing %s links for aggregate", len(config.Collection.LinkedCollections))
+		linkedDesc := []ocispec.Descriptor{desc}
+		for _, l := range config.Collection.LinkedCollections {
+			desc, _, err := client.GetManifest(ctx, l)
+			if err != nil {
+				return nil, fmt.Errorf("link %q: %w", l, err)
+			}
+			if desc.Annotations == nil {
+				desc.Annotations = map[string]string{}
+			}
+
+			ref, err := registry.ParseReference(l)
+			if err != nil {
+				return nil, fmt.Errorf("link %q: %w", l, err)
+			}
+			linkAttr := descriptor.Properties{
+				Manifest: &uorspec.ManifestAttributes{
+					RegistryHint:  ref.Registry,
+					NamespaceHint: ref.Repository,
+					Transitive:    true,
+				},
+			}
+			linkJSON, err := json.Marshal(linkAttr)
+			if err != nil {
+				return nil, err
+			}
+			desc.Annotations[uorspec.AnnotationUORAttributes] = string(linkJSON)
+			linkedDesc = append(linkedDesc, desc)
+		}
+		aggregateRef := fmt.Sprintf("%s-aggregate", reference)
+		desc, err := client.AddIndex(ctx, aggregateRef, nil, linkedDesc...)
+		if err != nil {
+			return nil, fmt.Errorf("aggregate reference %s: %w", aggregateRef, err)
+		}
+		d.logger.Infof("Aggregate %s built with reference name %s\n", desc.Digest, aggregateRef)
+	}
+
+	return []string{desc.Digest.String()}, nil
 }
 
 // fetchJSONSchema returns a schema type from a content store and a schema address.
@@ -190,8 +224,12 @@ func fetchJSONSchema(ctx context.Context, schemaAddress string, store content.At
 		return schema.Schema{}, "", err
 	}
 
+	var schemaID string
 	node, err := v2.NewNode(desc.Digest.String(), desc)
-	schemaID := node.Properties.Schema.ID
+	props := node.Properties
+	if props.Schema != nil {
+		schemaID = props.Schema.ID
+	}
 
 	schemaReader, err := store.Fetch(ctx, desc)
 	if err != nil {
@@ -208,22 +246,4 @@ func fetchJSONSchema(ctx context.Context, schemaAddress string, store content.At
 
 	sc, err := schema.New(loader)
 	return sc, schemaID, err
-}
-
-// gatherLinkedCollections create null descriptors to denotes linked collections in a manifest with schema link information.
-func gatherLinkedCollections(ctx context.Context, cfg clientapi.DataSetConfiguration, client registryclient.Client) ([]ocispec.Descriptor, error) {
-	var linkedDescs []ocispec.Descriptor
-	for _, collection := range cfg.Collection.LinkedCollections {
-
-		annotations := map[string]string{
-			"link": "true",
-		}
-		// The bytes contain the collection name to keep the blobs unique within the manifest
-		desc, err := client.AddContent(ctx, ocispec.MediaTypeImageLayer, []byte(collection), annotations)
-		if err != nil {
-			return nil, err
-		}
-		linkedDescs = append(linkedDescs, desc)
-	}
-	return linkedDescs, nil
 }

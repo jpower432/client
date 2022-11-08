@@ -4,6 +4,7 @@ import (
 	"context"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
 	"oras.land/oras-go/v2/content"
 
 	"github.com/uor-framework/uor-client-go/model"
@@ -40,5 +41,5 @@ type GraphStore interface {
 	content.PredecessorFinder
 	// ResolveLinks returns all sub-collections references that are linked
 	// to the node corresponding a given reference.
-	ResolveLinks(context.Context, string) ([]string, error)
+	ResolveLinks(context.Context, string) ([]uorspec.Descriptor, error)
 }

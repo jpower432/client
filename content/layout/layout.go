@@ -24,8 +24,8 @@ import (
 	"github.com/uor-framework/uor-client-go/model/traversal"
 	"github.com/uor-framework/uor-client-go/nodes/collection"
 	"github.com/uor-framework/uor-client-go/nodes/collection/loader"
-	"github.com/uor-framework/uor-client-go/nodes/descriptor"
 	"github.com/uor-framework/uor-client-go/nodes/descriptor/v2"
+	"github.com/uor-framework/uor-client-go/nodes/descriptor/v3"
 )
 
 var (
@@ -209,7 +209,7 @@ func (l *Layout) AttributeSchema(ctx context.Context, reference string) (ocispec
 
 // ResolveLinks returns linked collection references for a collection. If the collection
 // has no links, an error is returned.
-func (l *Layout) ResolveLinks(ctx context.Context, reference string) ([]string, error) {
+func (l *Layout) ResolveLinks(ctx context.Context, reference string) ([]uorspec.Descriptor, error) {
 	desc, err := l.Resolve(ctx, reference)
 	if err != nil {
 		return nil, err
@@ -219,7 +219,7 @@ func (l *Layout) ResolveLinks(ctx context.Context, reference string) ([]string, 
 		return nil, err
 	}
 	defer r.Close()
-	return descriptor.ResolveCollectionLinks(r)
+	return v3.ResolveCollectionLinks(r)
 }
 
 // Tag tags a descriptor with a reference string.
