@@ -17,7 +17,7 @@ const ApplicationName = "uor"
 
 // GenerateInventory generates an inventory based on input and DatasetConfiguration information.
 func GenerateInventory(input string, config clientapi.DataSetConfiguration) (*sbom.SBOM, error) {
-	si, err := source.ParseInput(input, config.Collection.Platform, true)
+	si, err := source.ParseInput(input, config.Collection.Components.Platform, true)
 	if err != nil {
 		return nil, fmt.Errorf("could not generate source input:  %w", err)
 	}

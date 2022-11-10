@@ -6,19 +6,27 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"github.com/anchore/syft/syft/artifact"
+	"github.com/anchore/syft/syft/file"
 	"github.com/anchore/syft/syft/formats/spdx22json"
 	"github.com/anchore/syft/syft/pkg"
 	"github.com/anchore/syft/syft/sbom"
+	"github.com/anchore/syft/syft/source"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/spf13/cobra"
 
+	"github.com/uor-framework/uor-client-go/components"
 	"github.com/uor-framework/uor-client-go/model"
 	"github.com/uor-framework/uor-client-go/model/traversal"
 	"github.com/uor-framework/uor-client-go/nodes/collection"
 	v2 "github.com/uor-framework/uor-client-go/nodes/descriptor/v2"
 	"github.com/uor-framework/uor-client-go/registryclient"
 	"github.com/uor-framework/uor-client-go/registryclient/orasclient"
+	"github.com/uor-framework/uor-client-go/schema"
 	"github.com/uor-framework/uor-client-go/util/examples"
+	"github.com/uor-framework/uor-client-go/version"
 )
 
 // InventoryOptions describe configuration options that can
@@ -97,8 +105,16 @@ func (o *InventoryOptions) Run(ctx context.Context) error {
 	return formatter.Encode(o.IOStreams.Out, inventory)
 }
 
+// collectionToInventory traverses and fully resolves a collection and create a software inventory from the graph.
+// This only fills out SPDX required data at this point.
 func collectionToInventory(ctx context.Context, graph collection.Collection, client registryclient.Remote) (sbom.SBOM, error) {
-	var inventory sbom.SBOM
+	inventory := sbom.SBOM{
+		Artifacts: sbom.Artifacts{
+			FileDigests:  map[source.Coordinates][]file.Digest{},
+			FileMetadata: map[source.Coordinates]source.FileMetadata{},
+		},
+	}
+
 	var packages []pkg.Package
 	root, err := graph.Root()
 	if err != nil {
@@ -118,17 +134,105 @@ func collectionToInventory(ctx context.Context, graph collection.Collection, cli
 			return nil, nil
 		}
 
+		successors := graph.From(node.ID())
+		props := desc.Properties
+		if props == nil {
+			return successors, nil
+		}
+
+		attribute := props.FindBySchema(schema.ConvertedSchemaID, ocispec.AnnotationTitle)
+		var title string
+		if attribute != nil {
+			title, err = attribute.AsString()
+			if err != nil {
+				return nil, nil
+			}
+		}
+
+		coordinates := source.Coordinates{
+			RealPath:     title,
+			FileSystemID: node.ID(),
+		}
+
+		digest := file.Digest{
+			Algorithm: desc.Descriptor().Digest.Algorithm().String(),
+			Value:     desc.Descriptor().Digest.Encoded(),
+		}
+		inventory.Artifacts.FileDigests[coordinates] = []file.Digest{digest}
+
+		fileMeta := source.FileMetadata{
+			Size:     desc.Descriptor().Size,
+			MIMEType: desc.Descriptor().MediaType,
+		}
+		inventory.Artifacts.FileMetadata[coordinates] = fileMeta
+
+		if props.IsAComponent() {
+			locations := source.LocationSet{}
+			for _, loc := range props.Descriptor.Locations {
+				locations.Add(source.NewLocation(loc))
+			}
+
+			var cpes []pkg.CPE
+			for _, cpe := range props.Descriptor.CPEs {
+				c, err := pkg.NewCPE(cpe)
+				if err != nil {
+					return nil, err
+				}
+				cpes = append(cpes, c)
+			}
+
+			var metaType pkg.MetadataType
+			var metadata interface{}
+			if len(props.Descriptor.AdditionalMetadata) == 1 {
+				for typ, meta := range props.Descriptor.AdditionalMetadata {
+					metaType = pkg.MetadataType(typ)
+					if _, ok := pkg.MetadataTypeByName[metaType]; !ok {
+						continue
+					}
+					metadata = meta
+				}
+			}
+
+			p := pkg.Package{
+				Name:         props.Descriptor.Name,
+				Version:      props.Descriptor.Version,
+				FoundBy:      props.Descriptor.FoundBy,
+				Locations:    locations,
+				Licenses:     props.Descriptor.Licenses,
+				Language:     pkg.Language(props.Descriptor.Language),
+				Type:         pkg.Type(props.Descriptor.Type),
+				CPEs:         cpes,
+				PURL:         props.Descriptor.PURL,
+				MetadataType: metaType,
+				Metadata:     metadata,
+			}
+			p.OverrideID(artifact.ID(props.Descriptor.ID))
+			packages = append(packages, p)
+		}
+
 		// Load link and provide access to those nodes.
-		if desc.Properties != nil && desc.Properties.IsALink() {
-			constructedRef := fmt.Sprintf("%s/%s@%s", desc.Properties.Link.RegistryHint, desc.Properties.Link.NamespaceHint, desc.ID())
+		if props.IsALink() {
+			constructedRef := fmt.Sprintf("%s/%s@%s", props.Link.RegistryHint, props.Link.NamespaceHint, desc.ID())
 			linkedCollection, err := client.LoadCollection(ctx, constructedRef)
 			if err != nil {
 				return nil, err
 			}
+
+			// FIXME(jpower432): This logic needs to be revisited. May child to parent relationship graph
+			// during traversal or perform all of this logic on the successors.
+			parent := tracker.Prev(node)
+			parentIdentifier := identifier{parent.ID()}
+			childIdentifier := identifier{node.ID()}
+			relationship := artifact.Relationship{
+				From: parentIdentifier,
+				To:   childIdentifier,
+				Type: artifact.DependencyOfRelationship,
+			}
+			inventory.Relationships = append(inventory.Relationships, relationship)
+
 			return linkedCollection.Nodes(), nil
 		}
 
-		successors := graph.From(node.ID())
 		return successors, err
 	})
 
@@ -138,6 +242,23 @@ func collectionToInventory(ctx context.Context, graph collection.Collection, cli
 
 	catalog := pkg.NewCatalog(packages...)
 	inventory.Artifacts.PackageCatalog = catalog
+	versionBuilder := new(strings.Builder)
+	if err := version.GetVersion(versionBuilder); err != nil {
+		return sbom.SBOM{}, err
+	}
+	inventory.Descriptor = sbom.Descriptor{
+		Name:    components.ApplicationName,
+		Version: versionBuilder.String(),
+	}
 
 	return inventory, nil
+}
+
+// identifier implement the syft.Identifiable interface.
+type identifier struct {
+	id string
+}
+
+func (i identifier) ID() artifact.ID {
+	return artifact.ID(i.id)
 }
