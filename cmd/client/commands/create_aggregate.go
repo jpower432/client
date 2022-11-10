@@ -50,7 +50,7 @@ func NewAggregateCmd(createOps *CreateOptions) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&o.SchemaID, "schemaID", "s", schema.UnknownSchemaID, "Schema ID to scope attribute query. Default is \"unknown\"")
+	cmd.Flags().StringVarP(&o.SchemaID, "schema-id", "s", schema.UnknownSchemaID, "Schema ID to scope attribute query. Default is \"unknown\"")
 
 	return cmd
 }

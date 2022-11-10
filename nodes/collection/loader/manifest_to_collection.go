@@ -43,6 +43,7 @@ func LoadFromManifest(ctx context.Context, graph *collection.Collection, fetcher
 		// We do not want to expect to traversal outside the repo doing this
 		// traversal, so we just make the links leaf nodes that can be
 		// lazily loaded.
+
 		if desc.Properties != nil && desc.Properties.IsALink() {
 			return nil, nil
 		}

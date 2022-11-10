@@ -190,7 +190,7 @@ func PackAggregate(ctx context.Context, pusher content.Pusher, manifests []ocisp
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("failed to marshal manifest: %w", err)
 	}
-	manifestDesc := content.NewDescriptorFromBytes(ocispec.MediaTypeImageManifest, manifestJSON)
+	manifestDesc := content.NewDescriptorFromBytes(ocispec.MediaTypeImageIndex, manifestJSON)
 	// populate Annotations of the manifest into manifestDesc
 	manifestDesc.Annotations = manifest.Annotations
 

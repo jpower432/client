@@ -1,9 +1,6 @@
 package components
 
 import (
-	"crypto"
-	"fmt"
-
 	"github.com/anchore/syft/cmd/syft/cli/eventloop"
 	"github.com/anchore/syft/syft"
 	"github.com/anchore/syft/syft/artifact"
@@ -27,8 +24,6 @@ func getTasks(config clientapi.DataSetConfiguration) ([]eventloop.Task, error) {
 
 	generators := []func(config clientapi.DataSetConfiguration) (eventloop.Task, error){
 		generateCatalogPackagesTask,
-		generateCatalogFileMetadataTask,
-		generateCatalogFileDigestsTask,
 		generateCatalogSecretsTask,
 		generateCatalogFileClassificationsTask,
 		generateCatalogContentsTask,
@@ -59,68 +54,6 @@ func generateCatalogPackagesTask(config clientapi.DataSetConfiguration) (eventlo
 		results.LinuxDistribution = theDistro
 
 		return relationships, nil
-	}
-
-	return task, nil
-}
-
-func generateCatalogFileMetadataTask(_ clientapi.DataSetConfiguration) (eventloop.Task, error) {
-	metadataCataloger := file.NewMetadataCataloger()
-
-	task := func(results *sbom.Artifacts, src *source.Source) ([]artifact.Relationship, error) {
-		resolver, err := src.FileResolver(scope)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := metadataCataloger.Catalog(resolver)
-		if err != nil {
-			return nil, err
-		}
-		results.FileMetadata = result
-		return nil, nil
-	}
-
-	return task, nil
-}
-
-func generateCatalogFileDigestsTask(_ clientapi.DataSetConfiguration) (eventloop.Task, error) {
-	supportedHashAlgorithms := make(map[string]crypto.Hash)
-	for _, h := range []crypto.Hash{
-		crypto.MD5,
-		crypto.SHA1,
-		crypto.SHA256,
-	} {
-		supportedHashAlgorithms[file.DigestAlgorithmName(h)] = h
-	}
-
-	var hashes []crypto.Hash
-	for _, hashStr := range digests {
-		name := file.CleanDigestAlgorithmName(hashStr)
-		hashObj, ok := supportedHashAlgorithms[name]
-		if !ok {
-			return nil, fmt.Errorf("unsupported hash algorithm: %s", hashStr)
-		}
-		hashes = append(hashes, hashObj)
-	}
-
-	digestsCataloger, err := file.NewDigestsCataloger(hashes)
-	if err != nil {
-		return nil, err
-	}
-
-	task := func(results *sbom.Artifacts, src *source.Source) ([]artifact.Relationship, error) {
-		resolver, err := src.FileResolver(scope)
-		if err != nil {
-			return nil, err
-		}
-
-		result, err := digestsCataloger.Catalog(resolver)
-		if err != nil {
-			return nil, err
-		}
-		results.FileDigests = result
-		return nil, nil
 	}
 
 	return task, nil

@@ -144,7 +144,11 @@ func (c *orasClient) AddIndex(ctx context.Context, ref string, manifestAnnotatio
 
 // Save saves the OCI artifact to local store location (e.g. cache)
 func (c *orasClient) Save(ctx context.Context, ref string, store content.Store) (ocispec.Descriptor, error) {
-	return oras.Copy(ctx, c.artifactStore, ref, store, ref, c.copyOpts)
+	// Create a copy of the options so the original copy
+	// options are not modified.
+	cCopyOpts := c.copyOpts
+	cCopyOpts.FindSuccessors = successorFnWithSparseManifests
+	return oras.Copy(ctx, c.artifactStore, ref, store, ref, cCopyOpts)
 }
 
 // LoadCollection loads a UOR collection type from a remote registry path.
@@ -391,10 +395,9 @@ func (c *orasClient) Pull(ctx context.Context, ref string, store content.Store) 
 			if ok {
 				// Skip any attempts to pull a link as they could
 				// be outside the repository.
-				if d.Properties != nil && d.Properties.IsALink() {
-					continue
+				if d.Properties == nil || !d.Properties.IsALink() {
+					result = append(result, d.Descriptor())
 				}
-				result = append(result, d.Descriptor())
 			}
 		}
 		return result, nil
@@ -420,7 +423,12 @@ func (c *orasClient) Push(ctx context.Context, store content.Store, ref string) 
 		return ocispec.Descriptor{}, fmt.Errorf("could not create registry target: %w", err)
 	}
 
-	return oras.Copy(ctx, store, ref, repo, ref, c.copyOpts)
+	// Create a copy of the options so the original copy
+	// options are not modified.
+	cCopyOpts := c.copyOpts
+	cCopyOpts.FindSuccessors = successorFnWithSparseManifests
+
+	return oras.Copy(ctx, store, ref, repo, ref, cCopyOpts)
 }
 
 // GetManifest returns the manifest the reference resolves to.
@@ -474,6 +482,30 @@ func (c *orasClient) setupRepo(ref string) (*remote.Repository, error) {
 	repo.PlainHTTP = c.plainHTTP
 	repo.Client = c.authClient
 	return repo, nil
+}
+
+// TODO(jpower432): PR upstream so that this can be done with the pre-copy option. Currently the error to skip descriptors is
+// private https://github.com/oras-project/oras-go/blob/9e5b1419cdedd6240a5bf836c83f75270ba9d74b/copy.go#L49.
+
+// successorFnWithSparseManifest defines a successor function to use with oras.Copy that will skip any expected linked content (i.e. sparse manifests)
+func successorFnWithSparseManifests(ctx context.Context, fetcher orascontent.Fetcher, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+	successors, err := orascontent.Successors(ctx, fetcher, desc)
+	if err != nil {
+		return nil, err
+	}
+
+	var filtered []ocispec.Descriptor
+	for _, s := range successors {
+		node, err := v2.NewNode(s.Digest.String(), s)
+		if err != nil {
+			return nil, err
+		}
+		if node.Properties == nil || !node.Properties.IsALink() {
+			filtered = append(filtered, s)
+		}
+
+	}
+	return filtered, nil
 }
 
 // loadFiles stores files in a file store and creates descriptors representing each file in the store.

@@ -12,7 +12,8 @@ import (
 	"oras.land/oras-go/v2/content"
 )
 
-// NewRegistry returns a handler which implements the docker registry protocol.
+// NewRegistry returns a handler which implements a mock registry with a v3
+// attributes endpoint.
 func NewRegistry(t *testing.T, blobs [][]byte, manifests [][]byte) http.Handler {
 	blobsByDigest := map[string][]byte{}
 	for _, blob := range blobs {
@@ -74,7 +75,7 @@ func NewRegistry(t *testing.T, blobs [][]byte, manifests [][]byte) http.Handler 
 			}
 		case strings.HasPrefix(r.URL.Path, "/v2/attributes"):
 			values := r.URL.Query()
-			if !values.Has("attributes") {
+			if !values.Has("attributes") && !values.Has("digests") && !values.Has("links") {
 				t.Errorf("wrong query type")
 			}
 			w.Header().Set("Content-Type", ocispec.MediaTypeImageIndex)
