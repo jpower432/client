@@ -3,15 +3,15 @@ package commands
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 
+	"github.com/anchore/syft/syft/formats/spdx22json"
+	"github.com/anchore/syft/syft/sbom"
 	"github.com/spf13/cobra"
 
-	"github.com/uor-framework/uor-client-go/cmd/client/commands/options"
-	"github.com/uor-framework/uor-client-go/components"
-	"github.com/uor-framework/uor-client-go/nodes/descriptor"
-	v2 "github.com/uor-framework/uor-client-go/nodes/descriptor/v2"
+	"github.com/uor-framework/uor-client-go/nodes/collection"
 	"github.com/uor-framework/uor-client-go/registryclient/orasclient"
 	"github.com/uor-framework/uor-client-go/util/examples"
 )
@@ -19,9 +19,7 @@ import (
 // InventoryOptions describe configuration options that can
 // be set using the push subcommand.
 type InventoryOptions struct {
-	*options.Common
-	options.Remote
-	options.RemoteAuth
+	*CreateOptions
 	Source string
 	Format string
 }
@@ -32,14 +30,14 @@ var clientInventoryExamples = examples.Example{
 	CommandString: "inventory localhost:5000/myartifacts:latest",
 }
 
-// NewInventoryCmd creates a new cobra.Command for the push subcommand.
-func NewInventoryCmd(common *options.Common) *cobra.Command {
-	o := PushOptions{Common: common}
+// NewInventoryCmd creates a new cobra.Command for the inventory subcommand.
+func NewInventoryCmd(createOpts *CreateOptions) *cobra.Command {
+	o := InventoryOptions{CreateOptions: createOpts}
 
 	cmd := &cobra.Command{
 		Use:           "inventory SRC",
 		Short:         "Create software inventories from UOR artifacts",
-		Example:       examples.FormatExamples(clientPushExamples),
+		Example:       examples.FormatExamples(clientInventoryExamples),
 		SilenceErrors: false,
 		SilenceUsage:  false,
 		Args:          cobra.ExactArgs(1),
@@ -49,9 +47,6 @@ func NewInventoryCmd(common *options.Common) *cobra.Command {
 			cobra.CheckErr(o.Run(cmd.Context()))
 		},
 	}
-
-	o.Remote.BindFlags(cmd.Flags())
-	o.RemoteAuth.BindFlags(cmd.Flags())
 
 	return cmd
 }
@@ -74,21 +69,30 @@ func (o *InventoryOptions) Run(ctx context.Context) error {
 		orasclient.WithAuthConfigs(o.Configs),
 		orasclient.WithPlainHTTP(o.PlainHTTP),
 	)
+	if err != nil {
+		return fmt.Errorf("error configuring client: %v", err)
+	}
+	defer func() {
+		if err := client.Destroy(); err != nil {
+			o.Logger.Errorf(err.Error())
+		}
+	}()
 
 	collection, err := client.LoadCollection(ctx, o.Source)
 	if err != nil {
 		return err
 	}
 
-	var props []descriptor.Properties
-	for _, node := range collection.Nodes() {
-		desc, ok := node.(*v2.Node)
-		if ok {
-			props = append(props, *desc.Properties)
-		}
+	// TODO(jpower432): Complete the collections by traversing through to load any links
+	inventory, err := collectionToProperties(collection)
+	if err != nil {
+		return err
 	}
 
-	inventory := components.PropertiesToInventory(props)
+	formatter := spdx22json.Format()
+	return formatter.Encode(o.IOStreams.Out, inventory)
+}
 
-	return components.InventoryToSPDXJSON(o.IOStreams.Out, inventory)
+func collectionToProperties(c collection.Collection) (sbom.SBOM, error) {
+	return sbom.SBOM{}, nil
 }

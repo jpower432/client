@@ -11,6 +11,7 @@ import (
 	"github.com/uor-framework/uor-client-go/model"
 	"github.com/uor-framework/uor-client-go/model/traversal"
 	"github.com/uor-framework/uor-client-go/nodes/collection"
+	"github.com/uor-framework/uor-client-go/nodes/descriptor"
 	v2 "github.com/uor-framework/uor-client-go/nodes/descriptor/v2"
 )
 
@@ -25,12 +26,13 @@ func LoadFromManifest(ctx context.Context, graph *collection.Collection, fetcher
 		return err
 	}
 
+	seen := map[string]struct{}{}
+
 	// track content status
 	tracker := traversal.NewTracker(root, nil)
 
 	handler := traversal.HandlerFunc(func(ctx context.Context, tracker traversal.Tracker, node model.Node) ([]model.Node, error) {
-		// skip the node if it has been indexed
-		if graph.HasNode(node.ID()) {
+		if _, ok := seen[node.ID()]; ok {
 			return nil, traversal.ErrSkip
 		}
 
@@ -39,7 +41,14 @@ func LoadFromManifest(ctx context.Context, graph *collection.Collection, fetcher
 			return nil, traversal.ErrSkip
 		}
 
-		successors, err := getSuccessors(ctx, fetcher, manifest)
+		// We do not want to expect to traversal outside the repo doing this
+		// traversal, so we just make the links leaf nodes that can be
+		// lazily loaded.
+		if desc.Properties != nil && desc.Properties.IsALink() {
+			return nil, nil
+		}
+
+		successors, err := getSuccessors(ctx, fetcher, desc.Descriptor())
 		if err != nil {
 			return nil, err
 		}
@@ -48,6 +57,8 @@ func LoadFromManifest(ctx context.Context, graph *collection.Collection, fetcher
 		if err != nil {
 			return nil, err
 		}
+
+		seen[node.ID()] = struct{}{}
 
 		return nodes, nil
 	})
@@ -120,7 +131,20 @@ func getSuccessors(ctx context.Context, fetcher FetcherFunc, node ocispec.Descri
 		if err := json.Unmarshal(content, &manifest); err != nil {
 			return nil, err
 		}
-		return append([]ocispec.Descriptor{manifest.Config}, manifest.Layers...), nil
+
+		nodes := append([]ocispec.Descriptor{manifest.Config}, manifest.Layers...)
+
+		if manifest.Annotations != nil {
+			link, ok := manifest.Annotations[uorspec.AnnotationLink]
+			if ok {
+				var desc ocispec.Descriptor
+				if err := json.Unmarshal([]byte(link), &desc); err != nil {
+					return nil, err
+				}
+				nodes = append(nodes, desc)
+			}
+		}
+		return nodes, nil
 	case string(types.DockerManifestList), ocispec.MediaTypeImageIndex:
 		content, err := fetcher(ctx, node)
 		if err != nil {
@@ -148,6 +172,18 @@ func getSuccessors(ctx context.Context, fetcher FetcherFunc, node ocispec.Descri
 		if manifest.Subject != nil {
 			nodes = append(nodes, *manifest.Subject)
 		}
+
+		if manifest.Annotations != nil {
+			link, ok := manifest.Annotations[uorspec.AnnotationLink]
+			if ok {
+				var desc ocispec.Descriptor
+				if err := json.Unmarshal([]byte(link), &desc); err != nil {
+					return nil, err
+				}
+				nodes = append(nodes, desc)
+			}
+		}
+
 		return append(nodes, manifest.Blobs...), nil
 	case uorspec.MediaTypeCollectionManifest:
 		content, err := fetcher(ctx, node)
@@ -161,7 +197,14 @@ func getSuccessors(ctx context.Context, fetcher FetcherFunc, node ocispec.Descri
 		}
 		var nodes []ocispec.Descriptor
 		for _, blob := range manifest.Blobs {
-			collectionBlob, err := v2.CollectionToOCI(blob)
+			collectionBlob, err := descriptor.CollectionToOCI(blob)
+			if err != nil {
+				return nil, err
+			}
+			nodes = append(nodes, collectionBlob)
+		}
+		for _, link := range manifest.Links {
+			collectionBlob, err := descriptor.CollectionToOCI(link)
 			if err != nil {
 				return nil, err
 			}

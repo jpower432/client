@@ -73,6 +73,10 @@ func NewRegistry(t *testing.T, blobs [][]byte, manifests [][]byte) http.Handler 
 				t.Errorf("failed to write %q: %v", r.URL, err)
 			}
 		case strings.HasPrefix(r.URL.Path, "/v2/attributes"):
+			values := r.URL.Query()
+			if !values.Has("attributes") {
+				t.Errorf("wrong query type")
+			}
 			w.Header().Set("Content-Type", ocispec.MediaTypeImageIndex)
 			w.Header().Set("Docker-Content-Digest", d.String())
 			if _, err := w.Write(testIndexJSON); err != nil {

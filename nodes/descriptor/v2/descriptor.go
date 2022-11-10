@@ -19,7 +19,7 @@ var _ model.Node = &Node{}
 
 // NewNode create a new Descriptor Node.
 func NewNode(id string, desc ocispec.Descriptor) (*Node, error) {
-	attr, err := AnnotationsToAttributes(desc.Annotations)
+	attr, err := descriptor.AnnotationsToAttributes(desc.Annotations)
 	if err != nil {
 		return nil, err
 	}

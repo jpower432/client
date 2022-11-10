@@ -9,6 +9,8 @@ type AttributeQuery struct {
 	TypeMeta `json:",inline"`
 	// Attributes list the configuration for Attribute types.
 	Attributes Attributes `json:"attributes"`
+	Links      []string   `json:"links"`
+	Digests    []string   `json:"digests"`
 }
 
 // Attributes is a map structure that holds all

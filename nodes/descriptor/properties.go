@@ -20,7 +20,7 @@ var _ model.AttributeSet = &Properties{}
 
 // Properties define all properties an UOR collection descriptor can have.
 type Properties struct {
-	Manifest   *uorspec.ManifestAttributes   `json:"core-manifest,omitempty"`
+	Link       *uorspec.LinkAttributes       `json:"core-link,omitempty"`
 	Descriptor *uorspec.DescriptorAttributes `json:"core-descriptor,omitempty"`
 	Schema     *uorspec.SchemaAttributes     `json:"core-schema,omitempty"`
 	// A map of attribute sets where the string is the schema ID.
@@ -149,6 +149,25 @@ func (p *Properties) Merge(sets map[string]model.AttributeSet) error {
 	return nil
 }
 
+// IsALink returns whether a descriptor is a link.
+func (p *Properties) IsALink() bool {
+	return p.Link != nil
+}
+
+// IsASchema returns whether the descriptor is a schema.
+func (p *Properties) IsASchema() bool {
+	return p.Schema != nil
+}
+
+// IsAComponent returns whether the descriptor
+// has a component ID.
+func (p *Properties) IsAComponent() bool {
+	if p.Descriptor == nil {
+		return false
+	}
+	return p.Descriptor.Component.ID != ""
+}
+
 const (
 	TypeManifest   = "core-manifest"
 	TypeDescriptor = "core-descriptor"
@@ -166,12 +185,12 @@ func Parse(in map[string]json.RawMessage) (*Properties, error) {
 	for key, prop := range in {
 		switch key {
 		case TypeManifest:
-			var m uorspec.ManifestAttributes
-			if err := json.Unmarshal(prop, &m); err != nil {
+			var l uorspec.LinkAttributes
+			if err := json.Unmarshal(prop, &l); err != nil {
 				errs = append(errs, ParseError{Key: key, Err: err})
 				continue
 			}
-			out.Manifest = &m
+			out.Link = &l
 		case TypeDescriptor:
 			var d uorspec.DescriptorAttributes
 			if err := json.Unmarshal(prop, &d); err != nil {

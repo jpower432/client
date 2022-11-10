@@ -1,7 +1,6 @@
 package v3
 
 import (
-	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -12,24 +11,6 @@ import (
 	"github.com/uor-framework/uor-client-go/model"
 	"github.com/uor-framework/uor-client-go/nodes/descriptor"
 )
-
-// AttributesToAttributeSet converts collection spec attributes to an attribute set.
-func AttributesToAttributeSet(specAttributes map[string]json.RawMessage) (model.AttributeSet, error) {
-	return descriptor.Parse(specAttributes)
-}
-
-// AttributesFromAttributeSet converts an attribute set on collection spec attributes.
-func AttributesFromAttributeSet(set model.AttributeSet) (map[string]json.RawMessage, error) {
-	attributes := map[string]json.RawMessage{}
-	for _, a := range set.List() {
-		valueJSON, err := json.Marshal(a.AsAny())
-		if err != nil {
-			return nil, err
-		}
-		attributes[a.Key()] = valueJSON
-	}
-	return attributes, nil
-}
 
 // FIXME(jpower432): Deduplicate the below logic from v2, if possible
 
@@ -82,7 +63,7 @@ func UpdateDescriptors(nodes []Node, schemaID string, fileAttributes map[string]
 				return nil, fmt.Errorf("file %s: %w", node.Location, err)
 			}
 		}
-		mergedAttributes, err := AttributesFromAttributeSet(node.Properties)
+		mergedAttributes, err := descriptor.AttributesFromAttributeSet(node.Properties)
 		if err != nil {
 			return nil, err
 		}

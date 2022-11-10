@@ -3,9 +3,7 @@ package components
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 
-	"github.com/anchore/syft/syft/formats/spdx22json"
 	"github.com/anchore/syft/syft/pkg"
 	"github.com/anchore/syft/syft/sbom"
 	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
@@ -26,7 +24,7 @@ func InventoryToProperties(inventory sbom.SBOM, path string, properties *descrip
 	if pkgLen > 1 {
 		return fmt.Errorf("incorrect number of components found for %s, expected 1, got %d", path, pkgLen)
 	}
-	
+
 	descriptorPkg := pkgs[0]
 	var cpes = make([]string, len(descriptorPkg.CPEs))
 	for i, c := range descriptorPkg.CPEs {
@@ -67,19 +65,4 @@ func InventoryToProperties(inventory sbom.SBOM, path string, properties *descrip
 	}
 	properties.Descriptor.Component = component
 	return nil
-}
-
-// PropertiesToInventory aggregates descriptor information to create an inventory.
-func PropertiesToInventory(properties []descriptor.Properties) sbom.SBOM {
-	// TODO(jpower432): Must determine how to communicate artifact relationships
-	// based on aggregations
-	fmt.Println("Not implemented")
-	return sbom.SBOM{}
-}
-
-// InventoryToSPDXJSON writes an SPDX (22) JSON compliant document
-// from an inventory.
-func InventoryToSPDXJSON(out io.Writer, inventory sbom.SBOM) error {
-	formatter := spdx22json.Format()
-	return formatter.Encode(out, inventory)
 }
