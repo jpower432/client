@@ -11,14 +11,15 @@ import (
 )
 
 func TestProperties_MarshalJSON(t *testing.T) {
-	expJSON := `{"core-descriptor":{"id":"id","name":"","version":"","type":"","foundBy":"","locations":null,"licenses":null,"language":"","cpes":null,"purl":""},"core-manifest":{"registryHint":"test"},"test":{"name":"test","size":2}}`
+	expJSON := `{"core-descriptor":{"id":"id","name":"","version":"","type":"","foundBy":"","locations":null,"licenses":null,"language":"","cpes":null,"purl":""},"core-link":{"registryHint":"test","namespaceHint":"namespace","transitive":false},"test":{"name":"test","size":2}}`
 	set := attributes.Attributes{
 		"name": attributes.NewString("name", "test"),
 		"size": attributes.NewInt("size", 2),
 	}
 	props := &Properties{
-		Manifest: &uorspec.ManifestAttributes{
-			RegistryHint: "test",
+		Link: &uorspec.LinkAttributes{
+			RegistryHint:  "test",
+			NamespaceHint: "namespace",
 		},
 		Descriptor: &uorspec.DescriptorAttributes{
 			Component: uorspec.Component{

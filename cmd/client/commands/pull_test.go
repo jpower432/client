@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -14,13 +15,16 @@ import (
 	"github.com/google/go-containerregistry/pkg/registry"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/require"
+	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/memory"
+	orasregistry "oras.land/oras-go/v2/registry"
 	"oras.land/oras-go/v2/registry/remote"
 
 	"github.com/uor-framework/uor-client-go/cmd/client/commands/options"
 	"github.com/uor-framework/uor-client-go/log"
+	"github.com/uor-framework/uor-client-go/nodes/descriptor"
 )
 
 func TestPullComplete(t *testing.T) {
@@ -115,7 +119,6 @@ func TestPullRun(t *testing.T) {
 		name       string
 		opts       *PullOptions
 		assertFunc func(string) bool
-		prepFunc   func(*testing.T, string, string)
 		expError   string
 	}
 
@@ -137,7 +140,6 @@ func TestPullRun(t *testing.T) {
 				Source:   fmt.Sprintf("%s/client-test:latest", u.Host),
 				NoVerify: true,
 			},
-			prepFunc: prepTestArtifact,
 			assertFunc: func(path string) bool {
 				actual := filepath.Join(path, "hello.txt")
 				_, err = os.Stat(actual)
@@ -145,7 +147,7 @@ func TestPullRun(t *testing.T) {
 			},
 		},
 		{
-			name: "Success/ArtifactIndex",
+			name: "Success/PullAll",
 			opts: &PullOptions{
 				Common: &options.Common{
 					IOStreams: genericclioptions.IOStreams{
@@ -158,12 +160,47 @@ func TestPullRun(t *testing.T) {
 				Remote: options.Remote{
 					PlainHTTP: true,
 				},
-				Source:   fmt.Sprintf("%s/client-test:latest", u.Host),
+				Source:   fmt.Sprintf("%s/client-linked:latest", u.Host),
+				PullAll:  true,
 				NoVerify: true,
 			},
-			prepFunc: prepAggregate,
 			assertFunc: func(path string) bool {
 				actual := filepath.Join(path, "hello.txt")
+				_, err = os.Stat(actual)
+				if err != nil {
+					return false
+				}
+				actual = filepath.Join(path, "aggregate.txt")
+				_, err = os.Stat(actual)
+				if err != nil {
+					return false
+				}
+				actual = filepath.Join(path, "aggregate2.txt")
+				_, err = os.Stat(actual)
+				return err == nil
+			},
+		},
+		{
+			name: "Success/PullAllWithAttributes",
+			opts: &PullOptions{
+				Common: &options.Common{
+					IOStreams: genericclioptions.IOStreams{
+						Out:    os.Stdout,
+						In:     os.Stdin,
+						ErrOut: os.Stderr,
+					},
+					Logger: testlogr,
+				},
+				Remote: options.Remote{
+					PlainHTTP: true,
+				},
+				Source:         fmt.Sprintf("%s/client-linked-attr:latest", u.Host),
+				PullAll:        true,
+				AttributeQuery: "testdata/configs/link.yaml",
+				NoVerify:       true,
+			},
+			assertFunc: func(path string) bool {
+				actual := filepath.Join(path, "aggregate.txt")
 				_, err = os.Stat(actual)
 				return err == nil
 			},
@@ -186,7 +223,6 @@ func TestPullRun(t *testing.T) {
 				AttributeQuery: "testdata/configs/match.yaml",
 				NoVerify:       true,
 			},
-			prepFunc: prepTestArtifact,
 			assertFunc: func(path string) bool {
 				actual := filepath.Join(path, "hello.txt")
 				_, err = os.Stat(actual)
@@ -211,7 +247,6 @@ func TestPullRun(t *testing.T) {
 				AttributeQuery: "testdata/configs/nomatch.yaml",
 				NoVerify:       true,
 			},
-			prepFunc: prepTestArtifact,
 			assertFunc: func(path string) bool {
 				actual := filepath.Join(path, "hello.txt")
 				_, err = os.Stat(actual)
@@ -224,7 +259,7 @@ func TestPullRun(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			tmp := t.TempDir()
 			c.opts.Output = tmp
-			c.prepFunc(t, c.opts.Source, u.Host)
+			prepTestArtifact(t, c.opts.Source, u.Host)
 
 			cache := filepath.Join(t.TempDir(), "cache")
 			require.NoError(t, os.MkdirAll(cache, 0750))
@@ -241,19 +276,55 @@ func TestPullRun(t *testing.T) {
 	}
 }
 
-// prepAggregate will push an aggregate into the
+// prepTestArtifact will push a hello.txt artifact into the
 // registry for retrieval. Uses methods from oras-go.
-func prepAggregate(t *testing.T, ref, host string) {
+func prepTestArtifact(t *testing.T, ref, host string) {
 	fileName := "hello.txt"
 	fileContent := []byte("Hello World!\n")
-	ref1 := fmt.Sprintf("%s/test1:latest", host)
 
-	desc1, err := publishFunc(fileName, ref1, fileContent, map[string]string{"test": "annotation"}, nil)
+	aggregateRef := fmt.Sprintf("%s-aggregate", ref)
+	aggregateDesc := prepAggregate(t, aggregateRef)
+
+	aggregationJSON, err := json.Marshal(aggregateDesc)
 	require.NoError(t, err)
-	fileName2 := "goodbye.txt"
-	fileContent2 := []byte("Goodbye World!\n")
-	ref2 := fmt.Sprintf("%s/test2:latest", host)
-	desc2, err := publishFunc(fileName2, ref2, fileContent2, map[string]string{"test": "annotation"}, nil)
+
+	manifestAnnotations := map[string]string{
+		uorspec.AnnotationLink: string(aggregationJSON),
+	}
+	_, err = publishFunc(fileName, ref, fileContent, map[string]string{"test": "annotation"}, manifestAnnotations)
+	require.NoError(t, err)
+}
+
+// prepAggregate will push an aggregate into the
+// registry for retrieval. Uses methods from oras-go.
+func prepAggregate(t *testing.T, ref string) ocispec.Descriptor {
+	fileName := "aggregate.txt"
+	fileContent := []byte("Hello Again World!\n")
+	ref1 := fmt.Sprintf("%s-ref1", ref)
+
+	r, err := orasregistry.ParseReference(ref)
+	require.NoError(t, err)
+	linkAttr := descriptor.Properties{
+		Link: &uorspec.LinkAttributes{
+			RegistryHint:  r.Registry,
+			NamespaceHint: r.Repository,
+			Transitive:    true,
+		},
+	}
+	linkJSON, err := json.Marshal(linkAttr)
+	require.NoError(t, err)
+	ref1Annotations := map[string]string{
+		uorspec.AnnotationUORAttributes: string(linkJSON),
+	}
+	desc1, err := publishFunc(fileName, ref1, fileContent, map[string]string{"test": "linkedannotation"}, ref1Annotations)
+	require.NoError(t, err)
+	fileName2 := "aggregate2.txt"
+	fileContent2 := []byte("Hello Again Again World !\n")
+	ref2 := fmt.Sprintf("%s-ref2", ref)
+	ref2Annotations := map[string]string{
+		uorspec.AnnotationUORAttributes: string(linkJSON),
+	}
+	desc2, err := publishFunc(fileName2, ref2, fileContent2, map[string]string{"test": "annotation"}, ref2Annotations)
 
 	memoryStore := memory.New()
 	manifest, err := generateIndex(nil, desc1, desc2)
@@ -268,17 +339,9 @@ func prepAggregate(t *testing.T, ref, host string) {
 	repo, err := remote.NewRepository(ref)
 	require.NoError(t, err)
 	repo.PlainHTTP = true
-	_, err = oras.Copy(context.TODO(), memoryStore, ref, repo, "", oras.DefaultCopyOptions)
+	desc, err := oras.Copy(context.TODO(), memoryStore, ref, repo, "", oras.DefaultCopyOptions)
 	require.NoError(t, err)
-}
-
-// prepTestArtifact will push a hello.txt artifact into the
-// registry for retrieval. Uses methods from oras-go.
-func prepTestArtifact(t *testing.T, ref, host string) {
-	fileName := "hello.txt"
-	fileContent := []byte("Hello World!\n")
-	_, err := publishFunc(fileName, ref, fileContent, map[string]string{"test": "annotation"}, nil)
-	require.NoError(t, err)
+	return desc
 }
 
 func publishFunc(fileName, ref string, fileContent []byte, layerAnnotations, manifestAnnotations map[string]string) (ocispec.Descriptor, error) {
@@ -289,10 +352,11 @@ func publishFunc(fileName, ref string, fileContent []byte, layerAnnotations, man
 	if err != nil {
 		return ocispec.Descriptor{}, nil
 	}
+
+	layerDesc.Annotations = layerAnnotations
 	if layerDesc.Annotations == nil {
 		layerDesc.Annotations = map[string]string{}
 	}
-	layerDesc.Annotations = layerAnnotations
 	layerDesc.Annotations[ocispec.AnnotationTitle] = fileName
 
 	config := []byte("{}")

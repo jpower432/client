@@ -14,7 +14,7 @@ import (
 type Manager interface {
 	// Build builds collection from input and store it in the underlying content store.
 	// If successful, the root descriptor is returned.
-	Build(ctx context.Context, source workspace.Workspace, config clientapi.DataSetConfiguration, destination string, client registryclient.Client) ([]string, error)
+	Build(ctx context.Context, source workspace.Workspace, config clientapi.DataSetConfiguration, destination string, client registryclient.Client) (string, error)
 	// Push pushes collection to a remote location from the underlying content store.
 	// If successful, the root descriptor is returned.
 	Push(ctx context.Context, destination string, remote registryclient.Remote) (string, error)
@@ -23,12 +23,12 @@ type Manager interface {
 	// Pull pulls a single collection to a specified storage destination.
 	// If successful, the file locations are returned.
 	Pull(ctx context.Context, source string, remote registryclient.Remote, destination content.Store) ([]string, error)
+	// ReadLayer reads a layer of a collection given an ocispec.AnnotationTitle value.
+	// If successful, the bytes of the layer's data are returned.
+	ReadLayer(ctx context.Context, source string, title string, client registryclient.Remote) ([]byte, error)
 	// PullAll pulls linked collection to a specified storage destination.
 	// If successful, the file locations are returned.
 	// PullAll is similar to Pull with the exception that it walks a graph of linked collections
 	// starting with the source collection reference.
 	PullAll(ctx context.Context, source string, remote registryclient.Remote, destination content.Store) ([]string, error)
-	// ReadLayer reads a layer of a collection given an ocispec.AnnotationTitle value.
-	// If successful, the bytes of the layer's data are returned.
-	ReadLayer(ctx context.Context, source string, title string, client registryclient.Remote) ([]byte, error)
 }

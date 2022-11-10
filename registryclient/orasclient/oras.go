@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/gabriel-vasile/mimetype"
@@ -23,12 +25,13 @@ import (
 
 	"github.com/uor-framework/uor-client-go/content"
 	"github.com/uor-framework/uor-client-go/model"
+	"github.com/uor-framework/uor-client-go/model/traversal"
 	"github.com/uor-framework/uor-client-go/nodes/collection"
 	collectionloader "github.com/uor-framework/uor-client-go/nodes/collection/loader"
 	"github.com/uor-framework/uor-client-go/nodes/descriptor/v2"
 	"github.com/uor-framework/uor-client-go/registryclient"
-	"github.com/uor-framework/uor-client-go/registryclient/orasclient/internal/attributequeries"
 	"github.com/uor-framework/uor-client-go/registryclient/orasclient/internal/cache"
+	"github.com/uor-framework/uor-client-go/registryclient/orasclient/internal/queries"
 )
 
 type orasClient struct {
@@ -167,28 +170,137 @@ func (c *orasClient) LoadCollection(ctx context.Context, reference string) (coll
 	return *co, nil
 }
 
-// ResolveAttributeQuery queries for the attribute endpoint in a v3 registry service.
-func (c *orasClient) ResolveAttributeQuery(ctx context.Context, registryHost string, descriptor ocispec.Descriptor) (ocispec.Index, error) {
+// ResolveDigestQuery send a digest query to the attribute endpoint in a v3 registry service.
+func (c *orasClient) ResolveDigestQuery(ctx context.Context, registryHost string, digests []string) (ocispec.Index, error) {
 	var index ocispec.Index
-
-	node, err := v2.NewNode(descriptor.Digest.String(), descriptor)
+	queryFN := queries.QueryParamsFn(func(values url.Values) {
+		values.Add("digests", formatDigests(digests))
+	})
+	results, err := queries.ResolveQuery(ctx, registryHost, queryFN, c.authClient, c.plainHTTP)
 	if err != nil {
-		return ocispec.Index{}, err
+		return index, fmt.Errorf("query failure for %s: %w", registryHost, err)
 	}
 
-	attributes, err := node.Properties.MarshalJSON()
-	if err != nil {
-		return ocispec.Index{}, err
+	if len(results) == 0 {
+		return ocispec.Index{}, nil
 	}
 
-	results, err := attributequeries.QueryForAttributes(ctx, registryHost, attributes, c.authClient, c.plainHTTP)
-	if err != nil {
-		return index, err
-	}
 	if err := json.Unmarshal(results, &index); err != nil {
 		return index, err
 	}
 	return index, nil
+}
+
+// ResolveLinkQuery sends a link query to the attribute endpoint in a v3 registry service.
+func (c *orasClient) ResolveLinkQuery(ctx context.Context, registryHost string, digests []string) (ocispec.Index, error) {
+	var index ocispec.Index
+	queryFN := queries.QueryParamsFn(func(values url.Values) {
+		values.Add("links", formatDigests(digests))
+	})
+	results, err := queries.ResolveQuery(ctx, registryHost, queryFN, c.authClient, c.plainHTTP)
+	if err != nil {
+		return index, fmt.Errorf("query failure for %s: %w", registryHost, err)
+	}
+
+	if len(results) == 0 {
+		return ocispec.Index{}, nil
+	}
+
+	if err := json.Unmarshal(results, &index); err != nil {
+		return index, err
+	}
+	return index, nil
+}
+
+// ResolveAttributeQuery send an attribute query to the attribute endpoint in a v3 registry service.
+func (c *orasClient) ResolveAttributeQuery(ctx context.Context, registryHost string, attributes json.RawMessage) (ocispec.Index, error) {
+	var index ocispec.Index
+	queryFN := queries.QueryParamsFn(func(values url.Values) {
+		values.Add("attributes", string(attributes))
+	})
+
+	results, err := queries.ResolveQuery(ctx, registryHost, queryFN, c.authClient, c.plainHTTP)
+	if err != nil {
+		return index, fmt.Errorf("query failure for %s: %w", registryHost, err)
+	}
+
+	if len(results) == 0 {
+		return ocispec.Index{}, nil
+	}
+
+	if err := json.Unmarshal(results, &index); err != nil {
+		return index, err
+	}
+	return index, nil
+}
+
+// PullWithLinks performs a copy of OCI artifacts to a local location from a remote location and follow links to
+// other artifacts.
+func (c *orasClient) PullWithLinks(ctx context.Context, ref string, store content.Store) ([]ocispec.Descriptor, error) {
+	seen := map[string]struct{}{}
+	var allDescs []ocispec.Descriptor
+
+	graph, err := c.LoadCollection(ctx, ref)
+	if err != nil {
+		return nil, err
+	}
+	root, err := graph.Root()
+	if err != nil {
+		return nil, err
+	}
+
+	processFunc := func(currRef string) error {
+		rootDesc, descs, err := c.Pull(ctx, currRef, store)
+		if err != nil {
+			return err
+		}
+		if len(rootDesc.Digest) != 0 {
+			if err := store.Tag(ctx, rootDesc, ref); err != nil {
+				return err
+			}
+		}
+		allDescs = append(allDescs, descs...)
+		return nil
+	}
+
+	// Process and pull links before pulling the requested manifests
+	tracker := traversal.NewTracker(root, nil)
+	handler := traversal.HandlerFunc(func(ctx context.Context, tracker traversal.Tracker, node model.Node) ([]model.Node, error) {
+		if _, ok := seen[node.ID()]; ok {
+			return nil, traversal.ErrSkip
+		}
+
+		desc, ok := node.(*v2.Node)
+		if !ok {
+			return nil, nil
+		}
+
+		// Load link and provide access to those nodes.
+		if desc.Properties != nil && desc.Properties.IsALink() {
+			constructedRef := fmt.Sprintf("%s/%s@%s", desc.Properties.Link.RegistryHint, desc.Properties.Link.NamespaceHint, desc.ID())
+			linkedCollection, err := c.LoadCollection(ctx, constructedRef)
+			if err != nil {
+				return nil, err
+			}
+			if err := processFunc(constructedRef); err != nil {
+				return nil, err
+			}
+			return linkedCollection.Nodes(), nil
+		}
+
+		successors := graph.From(node.ID())
+		return successors, err
+	})
+
+	if err := tracker.Walk(ctx, handler, root); err != nil {
+		return nil, err
+	}
+
+	if err := processFunc(ref); err != nil {
+		return nil, err
+	}
+
+	return allDescs, nil
 }
 
 // Pull performs a copy of OCI artifacts to a local location from a remote location.
@@ -277,6 +389,11 @@ func (c *orasClient) Pull(ctx context.Context, ref string, store content.Store) 
 		for _, s := range successors {
 			d, ok := s.(*v2.Node)
 			if ok {
+				// Skip any attempts to pull a link as they could
+				// be outside the repository.
+				if d.Properties != nil && d.Properties.IsALink() {
+					continue
+				}
 				result = append(result, d.Descriptor())
 			}
 		}
@@ -399,4 +516,30 @@ func getDefaultMediaType(file string) (string, error) {
 		return "", err
 	}
 	return mType.String(), nil
+}
+
+func formatDigests(digests []string) string {
+	n := len(digests)
+	switch {
+	case n == 1:
+		return digests[0]
+	case n > 1:
+		dedupLinks := deduplicate(digests)
+		return strings.Join(dedupLinks, ",")
+	default:
+		return ""
+	}
+}
+
+func deduplicate(in []string) []string {
+	links := map[string]struct{}{}
+	var out []string
+	for _, l := range in {
+		if _, ok := links[l]; ok {
+			continue
+		}
+		links[l] = struct{}{}
+		out = append(out, l)
+	}
+	return out
 }

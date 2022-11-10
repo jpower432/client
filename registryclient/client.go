@@ -2,6 +2,7 @@ package registryclient
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -26,18 +27,29 @@ type Remote interface {
 	// Pull pulls an artifact from a remote registry to a local
 	// content store. If successful it returns the root descriptor and all the descriptors pulled.
 	Pull(context.Context, string, content.Store) (ocispec.Descriptor, []ocispec.Descriptor, error)
+	// PullWithLinks pulls an artifact from a remote registry to a local
+	// content store and follows all of the links. If successful it returns the root descriptor and all the descriptors pulled.
+	PullWithLinks(context.Context, string, content.Store) ([]ocispec.Descriptor, error)
 	// GetManifest retrieves the root manifest for a reference.
 	GetManifest(context.Context, string) (ocispec.Descriptor, io.ReadCloser, error)
 	// GetContent retrieves the content for a specified descriptor at a specified reference.
 	GetContent(context.Context, string, ocispec.Descriptor) ([]byte, error)
 	// LoadCollection loads a collection from a remote reference.
 	LoadCollection(context.Context, string) (collection.Collection, error)
-	AttributeFinder
+	QueryResolver
 }
 
-// AttributeFinder resolve attribute queries for v3 compatible registries.
-type AttributeFinder interface {
-	ResolveAttributeQuery(context.Context, string, ocispec.Descriptor) (ocispec.Index, error)
+// QueryResolver resolves queries for v3 compatible registries.
+type QueryResolver interface {
+	// ResolveAttributeQuery sends a query to the v3 attribute endpoint with
+	// an attribute query parameter.
+	ResolveAttributeQuery(context.Context, string, json.RawMessage) (ocispec.Index, error)
+	// ResolveDigestQuery  sends a query to the v3 attribute endpoint with
+	// a digest query parameter.
+	ResolveDigestQuery(context.Context, string, []string) (ocispec.Index, error)
+	// ResolveLinkQuery  sends a query to the v3 attribute endpoint with
+	// a link query parameter.
+	ResolveLinkQuery(context.Context, string, []string) (ocispec.Index, error)
 }
 
 // Local defines methods to interact with OCI artifacts

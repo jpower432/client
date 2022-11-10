@@ -1,8 +1,7 @@
-package attributequeries
+package queries
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -11,11 +10,18 @@ import (
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
-func QueryForAttributes(ctx context.Context, registryHost string, query json.RawMessage, client *auth.Client, plainHTTP bool) ([]byte, error) {
+type QueryParamsFn func(values url.Values)
+
+// ResolveQuery send a query to the v3 registry.
+func ResolveQuery(ctx context.Context, registryHost string, paramsFn QueryParamsFn, client *auth.Client, plainHTTP bool) ([]byte, error) {
 	attributeURL, err := constructAttributesURL(registryHost, plainHTTP)
 	if err != nil {
 		return nil, err
 	}
+
+	queryParams := attributeURL.Query()
+	paramsFn(queryParams)
+	attributeURL.RawQuery = queryParams.Encode()
 
 	ctx = auth.AppendScopes(ctx, auth.ActionPull)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, attributeURL.String(), nil)
@@ -29,10 +35,6 @@ func QueryForAttributes(ctx context.Context, registryHost string, query json.Raw
 	// However, the remote server may still not RFC 7233 compliant.
 	// Reference: https://docs.docker.com/registry/spec/api/#blob
 	req.Header.Set("Range", "bytes=0-")
-
-	queryParams := attributeURL.Query()
-	queryParams.Add("query", string(query))
-	attributeURL.RawQuery = queryParams.Encode()
 
 	resp, err := client.Do(req)
 	if err != nil {

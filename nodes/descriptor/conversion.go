@@ -1,4 +1,4 @@
-package v2
+package descriptor
 
 import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
