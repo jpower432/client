@@ -26,11 +26,10 @@ func LoadFromManifest(ctx context.Context, graph *collection.Collection, fetcher
 		return err
 	}
 
-	seen := map[string]struct{}{}
-
 	// track content status
 	tracker := traversal.NewTracker(root, nil)
 
+	seen := map[string]struct{}{}
 	handler := traversal.HandlerFunc(func(ctx context.Context, tracker traversal.Tracker, node model.Node) ([]model.Node, error) {
 		if _, ok := seen[node.ID()]; ok {
 			return nil, traversal.ErrSkip
