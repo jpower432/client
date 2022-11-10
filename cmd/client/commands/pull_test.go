@@ -18,6 +18,7 @@ import (
 	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"oras.land/oras-go/v2"
+	orascontent "oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/content/memory"
 	orasregistry "oras.land/oras-go/v2/registry"
 	"oras.land/oras-go/v2/registry/remote"
@@ -259,7 +260,7 @@ func TestPullRun(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			tmp := t.TempDir()
 			c.opts.Output = tmp
-			prepTestArtifact(t, c.opts.Source, u.Host)
+			prepTestArtifact(t, c.opts.Source)
 
 			cache := filepath.Join(t.TempDir(), "cache")
 			require.NoError(t, os.MkdirAll(cache, 0750))
@@ -278,7 +279,7 @@ func TestPullRun(t *testing.T) {
 
 // prepTestArtifact will push a hello.txt artifact into the
 // registry for retrieval. Uses methods from oras-go.
-func prepTestArtifact(t *testing.T, ref, host string) {
+func prepTestArtifact(t *testing.T, ref string) {
 	fileName := "hello.txt"
 	fileContent := []byte("Hello World!\n")
 
@@ -339,7 +340,27 @@ func prepAggregate(t *testing.T, ref string) ocispec.Descriptor {
 	repo, err := remote.NewRepository(ref)
 	require.NoError(t, err)
 	repo.PlainHTTP = true
-	desc, err := oras.Copy(context.TODO(), memoryStore, ref, repo, "", oras.DefaultCopyOptions)
+	copyOpts := oras.DefaultCopyOptions
+
+	// Skip the links
+	successorFn := func(ctx context.Context, fetcher orascontent.Fetcher, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+		successors, err := orascontent.Successors(ctx, fetcher, desc)
+		if err != nil {
+			return nil, err
+		}
+
+		var filtered []ocispec.Descriptor
+		for _, s := range successors {
+			if s.Digest.String() == desc1.Digest.String() || s.Digest.String() == desc2.Digest.String() {
+				continue
+			}
+			filtered = append(filtered, s)
+		}
+
+		return filtered, nil
+	}
+	copyOpts.FindSuccessors = successorFn
+	desc, err := oras.Copy(context.TODO(), memoryStore, ref, repo, "", copyOpts)
 	require.NoError(t, err)
 	return desc
 }

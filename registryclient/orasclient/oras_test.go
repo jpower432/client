@@ -11,6 +11,8 @@ import (
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/registry"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/require"
 	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
 	"oras.land/oras-go/v2/content/file"
@@ -59,6 +61,28 @@ func TestAddManifest(t *testing.T) {
 		require.NoError(t, err)
 		mdesc, err := c.AddManifest(ctx, "localhost:5000/test:latest", configDesc, nil, desc...)
 		require.NoError(t, err)
+		require.Equal(t, expDigest, mdesc.Digest.String())
+	})
+}
+
+func TestAddIndex(t *testing.T) {
+	t.Run("Success/OneLink", func(t *testing.T) {
+		ctx := context.TODO()
+		expMediaType := ocispec.MediaTypeImageIndex
+		expDigest := "sha256:1dd97ca7e7c6ac3c931699d8f1ea572d408bfa1ab29a29fb0cad9633f82543ca"
+		c, err := NewClient(WithPlainHTTP(true))
+		require.NoError(t, err)
+
+		d := digest.NewDigestFromEncoded("sha256", "98f36e12e9dbacfbb10b9d1f32a46641eb42de588e54cfd7e8627d950ae8140a")
+
+		desc := ocispec.Descriptor{
+			Digest:    d,
+			MediaType: ocispec.MediaTypeImageManifest,
+			Size:      1355,
+		}
+		mdesc, err := c.AddIndex(ctx, "localhost:5000/test:latest", nil, desc)
+		require.NoError(t, err)
+		require.Equal(t, expMediaType, mdesc.MediaType)
 		require.Equal(t, expDigest, mdesc.Digest.String())
 	})
 }

@@ -169,7 +169,7 @@ func (p *Properties) IsAComponent() bool {
 }
 
 const (
-	TypeManifest   = "core-manifest"
+	TypeLink       = "core-link"
 	TypeDescriptor = "core-descriptor"
 	TypeSchema     = "core-schema"
 )
@@ -184,7 +184,7 @@ func Parse(in map[string]json.RawMessage) (*Properties, error) {
 	var errs []error
 	for key, prop := range in {
 		switch key {
-		case TypeManifest:
+		case TypeLink:
 			var l uorspec.LinkAttributes
 			if err := json.Unmarshal(prop, &l); err != nil {
 				errs = append(errs, ParseError{Key: key, Err: err})

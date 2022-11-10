@@ -8,10 +8,15 @@ import (
 	"path/filepath"
 
 	"github.com/anchore/syft/syft/formats/spdx22json"
+	"github.com/anchore/syft/syft/pkg"
 	"github.com/anchore/syft/syft/sbom"
 	"github.com/spf13/cobra"
 
+	"github.com/uor-framework/uor-client-go/model"
+	"github.com/uor-framework/uor-client-go/model/traversal"
 	"github.com/uor-framework/uor-client-go/nodes/collection"
+	v2 "github.com/uor-framework/uor-client-go/nodes/descriptor/v2"
+	"github.com/uor-framework/uor-client-go/registryclient"
 	"github.com/uor-framework/uor-client-go/registryclient/orasclient"
 	"github.com/uor-framework/uor-client-go/util/examples"
 )
@@ -83,8 +88,7 @@ func (o *InventoryOptions) Run(ctx context.Context) error {
 		return err
 	}
 
-	// TODO(jpower432): Complete the collections by traversing through to load any links
-	inventory, err := collectionToProperties(collection)
+	inventory, err := collectionToInventory(ctx, collection, client)
 	if err != nil {
 		return err
 	}
@@ -93,6 +97,47 @@ func (o *InventoryOptions) Run(ctx context.Context) error {
 	return formatter.Encode(o.IOStreams.Out, inventory)
 }
 
-func collectionToProperties(c collection.Collection) (sbom.SBOM, error) {
-	return sbom.SBOM{}, nil
+func collectionToInventory(ctx context.Context, graph collection.Collection, client registryclient.Remote) (sbom.SBOM, error) {
+	var inventory sbom.SBOM
+	var packages []pkg.Package
+	root, err := graph.Root()
+	if err != nil {
+		return inventory, err
+	}
+
+	seen := map[string]struct{}{}
+	// Process and pull links before pulling the requested manifests
+	tracker := traversal.NewTracker(root, nil)
+	handler := traversal.HandlerFunc(func(ctx context.Context, tracker traversal.Tracker, node model.Node) ([]model.Node, error) {
+		if _, ok := seen[node.ID()]; ok {
+			return nil, traversal.ErrSkip
+		}
+
+		desc, ok := node.(*v2.Node)
+		if !ok {
+			return nil, nil
+		}
+
+		// Load link and provide access to those nodes.
+		if desc.Properties != nil && desc.Properties.IsALink() {
+			constructedRef := fmt.Sprintf("%s/%s@%s", desc.Properties.Link.RegistryHint, desc.Properties.Link.NamespaceHint, desc.ID())
+			linkedCollection, err := client.LoadCollection(ctx, constructedRef)
+			if err != nil {
+				return nil, err
+			}
+			return linkedCollection.Nodes(), nil
+		}
+
+		successors := graph.From(node.ID())
+		return successors, err
+	})
+
+	if err := tracker.Walk(ctx, handler, root); err != nil {
+		return sbom.SBOM{}, err
+	}
+
+	catalog := pkg.NewCatalog(packages...)
+	inventory.Artifacts.PackageCatalog = catalog
+
+	return inventory, nil
 }
