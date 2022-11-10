@@ -17,8 +17,7 @@ const (
 	skipAboveFileSize = 1048576
 )
 
-var digests = []string{"sha256"}
-
+// getTask gathers all cataloging tasks information.
 func getTasks(config clientapi.DataSetConfiguration) ([]eventloop.Task, error) {
 	var tasks []eventloop.Task
 

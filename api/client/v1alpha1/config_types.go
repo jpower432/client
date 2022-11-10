@@ -12,7 +12,7 @@ type DataSetConfiguration struct {
 
 // DataSetConfigurationSpec defines the configuration spec to build a single UOR collection.
 type DataSetConfigurationSpec struct {
-	ComponentSpec
+	Components ComponentSpec `json:"components,omitempty"`
 	// Files defines custom attributes to add the files in the
 	// workspaces when publishing content/
 	Files []File `json:"files,omitempty"`
@@ -24,6 +24,7 @@ type DataSetConfigurationSpec struct {
 	LinkedCollections []string `json:"linkedCollections,omitempty"`
 }
 
+// ComponentSpec defines configuration information when creating component lists.
 type ComponentSpec struct {
 	Platform string `json:"platform"`
 }
