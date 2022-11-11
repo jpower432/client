@@ -326,6 +326,7 @@ func prepAggregate(t *testing.T, ref string) ocispec.Descriptor {
 		uorspec.AnnotationUORAttributes: string(linkJSON),
 	}
 	desc2, err := publishFunc(fileName2, ref2, fileContent2, map[string]string{"test": "annotation"}, ref2Annotations)
+	require.NoError(t, err)
 
 	memoryStore := memory.New()
 	manifest, err := generateIndex(nil, desc1, desc2)

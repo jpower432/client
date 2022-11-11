@@ -89,6 +89,7 @@ func TestAttributesToAttributeSet(t *testing.T) {
 	set, err := AttributesToAttributeSet(attrs)
 	require.NoError(t, err)
 	setJSON, err := set.MarshalJSON()
+	require.NoError(t, err)
 	require.Equal(t, expJSON, string(setJSON))
 	// JSON standard lib will unmarshal all numbers as float64
 	exists, err := set.Exists(attributes.NewFloat("size", 2))

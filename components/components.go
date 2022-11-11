@@ -23,6 +23,9 @@ func GenerateInventory(input string, config clientapi.DataSetConfiguration) (*sb
 	}
 
 	src, cleanup, err := source.New(*si, nil, nil)
+	if err != nil {
+		return nil, err
+	}
 	if cleanup != nil {
 		defer cleanup()
 	}

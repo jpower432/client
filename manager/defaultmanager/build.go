@@ -244,6 +244,9 @@ func fetchJSONSchema(ctx context.Context, schemaAddress string, store content.At
 
 	var schemaID string
 	node, err := v2.NewNode(desc.Digest.String(), desc)
+	if err != nil {
+		return schema.Schema{}, "", err
+	}
 	props := node.Properties
 	if props.IsASchema() {
 		schemaID = props.Schema.ID
