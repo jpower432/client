@@ -21,6 +21,7 @@ import (
 	"github.com/uor-framework/uor-client-go/model"
 	"github.com/uor-framework/uor-client-go/model/traversal"
 	"github.com/uor-framework/uor-client-go/nodes/collection"
+	collectionloader "github.com/uor-framework/uor-client-go/nodes/collection/loader"
 	v2 "github.com/uor-framework/uor-client-go/nodes/descriptor/v2"
 	"github.com/uor-framework/uor-client-go/registryclient"
 	"github.com/uor-framework/uor-client-go/registryclient/orasclient"
@@ -91,12 +92,16 @@ func (o *InventoryOptions) Run(ctx context.Context) error {
 		}
 	}()
 
-	collection, err := client.LoadCollection(ctx, o.Source)
+	desc, _, err := client.GetManifest(ctx, o.Source)
 	if err != nil {
 		return err
 	}
+	co := collection.New(o.Source)
+	if err := loadCollection(ctx, co, o.Source, desc, client); err != nil {
+		return err
+	}
 
-	inventory, err := collectionToInventory(ctx, collection, client)
+	inventory, err := collectionToInventory(ctx, co, client)
 	if err != nil {
 		return err
 	}
@@ -107,7 +112,7 @@ func (o *InventoryOptions) Run(ctx context.Context) error {
 
 // collectionToInventory traverses and fully resolves a collection and create a software inventory from the graph.
 // This only fills out SPDX required data at this point.
-func collectionToInventory(ctx context.Context, graph collection.Collection, client registryclient.Remote) (sbom.SBOM, error) {
+func collectionToInventory(ctx context.Context, graph *collection.Collection, client registryclient.Remote) (sbom.SBOM, error) {
 	inventory := sbom.SBOM{
 		Artifacts: sbom.Artifacts{
 			FileDigests:  map[source.Coordinates][]file.Digest{},
@@ -212,25 +217,13 @@ func collectionToInventory(ctx context.Context, graph collection.Collection, cli
 
 		// Load link and provide access to those nodes.
 		if props.IsALink() {
-			constructedRef := fmt.Sprintf("%s/%s@%s", props.Link.RegistryHint, props.Link.NamespaceHint, desc.ID())
-			linkedCollection, err := client.LoadCollection(ctx, constructedRef)
-			if err != nil {
+
+			constructedRef := fmt.Sprintf("%s/%s@%s", props.Link.RegistryHint, props.Link.NamespaceHint, desc.Descriptor().Digest.String())
+			if err := loadCollection(ctx, graph, constructedRef, desc.Descriptor(), client); err != nil {
 				return nil, err
 			}
 
-			// FIXME(jpower432): This logic needs to be revisited. May child to parent relationship graph
-			// during traversal or perform all of this logic on the successors.
-			parent := tracker.Prev(node)
-			parentIdentifier := identifier{parent.ID()}
-			childIdentifier := identifier{node.ID()}
-			relationship := artifact.Relationship{
-				From: parentIdentifier,
-				To:   childIdentifier,
-				Type: artifact.DependencyOfRelationship,
-			}
-			inventory.Relationships = append(inventory.Relationships, relationship)
-
-			return linkedCollection.Nodes(), nil
+			return graph.From(node.ID()), nil
 		}
 
 		return successors, err
@@ -238,6 +231,18 @@ func collectionToInventory(ctx context.Context, graph collection.Collection, cli
 
 	if err := tracker.Walk(ctx, handler, root); err != nil {
 		return sbom.SBOM{}, err
+	}
+
+	for _, edge := range graph.Edges() {
+		parent := edge.From()
+		parentIdentifier := identifier{parent.ID()}
+		childIdentifier := identifier{edge.To().ID()}
+		relationship := artifact.Relationship{
+			From: parentIdentifier,
+			To:   childIdentifier,
+			Type: artifact.DependencyOfRelationship,
+		}
+		inventory.Relationships = append(inventory.Relationships, relationship)
 	}
 
 	catalog := pkg.NewCatalog(packages...)
@@ -252,6 +257,13 @@ func collectionToInventory(ctx context.Context, graph collection.Collection, cli
 	}
 
 	return inventory, nil
+}
+
+func loadCollection(ctx context.Context, graph *collection.Collection, referenece string, rootDesc ocispec.Descriptor, client registryclient.Remote) error {
+	fetcherFn := func(ctx context.Context, desc ocispec.Descriptor) ([]byte, error) {
+		return client.GetContent(ctx, referenece, desc)
+	}
+	return collectionloader.LoadFromManifest(ctx, graph, fetcherFn, rootDesc)
 }
 
 // identifier implement the syft.Identifiable interface.
