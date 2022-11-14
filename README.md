@@ -641,6 +641,17 @@ root.txt
 
 Notice how only the _root.txt_ file was retrieved as only this file contained the attribute `color=orange`
 
+# Experimental Commands
+
+## Generate initial configuration file
+`uor-client-go init`
+
+## Query a V3 registry for content
+`uor-client-go create aggregate localhost:5000 /path/to/query -s myschema`
+
+## Create a software inventory from a collection and the links
+`uor-client-go create inventory localhost:5000/exercise/root:latest`
+
 # Glossary
 
 `collection`: a collection of linked files represented as on OCI artifact
