@@ -102,6 +102,7 @@ func indexNode(graph *collection.Collection, node ocispec.Descriptor, successors
 // addOrGetNode will return the node if it exists in the graph or will create a new
 // descriptor node.
 func addOrGetNode(graph *collection.Collection, desc ocispec.Descriptor) (model.Node, error) {
+	// TODO(jpower432): Node should be able to if they are a link.
 	n := graph.NodeByID(desc.Digest.String())
 	if n != nil {
 		return n, nil
