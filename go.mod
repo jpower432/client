@@ -20,7 +20,7 @@ require (
 	google.golang.org/protobuf v1.28.1
 	k8s.io/cli-runtime v0.24.0
 	k8s.io/kubectl v0.24.0
-	oras.land/oras-go/v2 v2.0.0-rc.3
+	oras.land/oras-go/v2 v2.0.0-rc.4
 	sigs.k8s.io/yaml v1.3.0
 )
 
@@ -29,7 +29,7 @@ require (
 	github.com/buger/jsonparser v1.1.1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/sigstore/cosign v1.13.1
-	github.com/uor-framework/collection-spec v0.0.0-00010101000000-000000000000
+	github.com/uor-framework/collection-spec v0.0.0-20221110141352-8a26930decbf
 )
 
 require (
@@ -357,7 +357,3 @@ require (
 	sigs.k8s.io/release-utils v0.7.3 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 )
-
-replace github.com/uor-framework/collection-spec => /home/jenniferpower/repos/redhat/collection-spec
-
-replace oras.land/oras-go/v2 => /home/jenniferpower/repos/learning-only/oras-go
