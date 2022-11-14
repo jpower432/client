@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/anchore/syft/syft/artifact"
 	"github.com/anchore/syft/syft/file"
@@ -92,12 +91,8 @@ func (o *InventoryOptions) Run(ctx context.Context) error {
 		}
 	}()
 
-	desc, _, err := client.GetManifest(ctx, o.Source)
-	if err != nil {
-		return err
-	}
 	co := collection.New(o.Source)
-	if err := loadCollection(ctx, co, o.Source, desc, client); err != nil {
+	if err := loadCollection(ctx, co, o.Source, client); err != nil {
 		return err
 	}
 
@@ -211,15 +206,20 @@ func collectionToInventory(ctx context.Context, graph *collection.Collection, cl
 				MetadataType: metaType,
 				Metadata:     metadata,
 			}
-			p.OverrideID(artifact.ID(props.Descriptor.ID))
+
+			id := props.Descriptor.ID
+			if id == "" {
+				id = desc.Descriptor().Digest.Encoded()
+			}
+
+			p.OverrideID(artifact.ID(id))
 			packages = append(packages, p)
 		}
 
 		// Load link and provide access to those nodes.
 		if props.IsALink() {
-
 			constructedRef := fmt.Sprintf("%s/%s@%s", props.Link.RegistryHint, props.Link.NamespaceHint, desc.Descriptor().Digest.String())
-			if err := loadCollection(ctx, graph, constructedRef, desc.Descriptor(), client); err != nil {
+			if err := loadCollection(ctx, graph, constructedRef, client); err != nil {
 				return nil, err
 			}
 
@@ -240,28 +240,29 @@ func collectionToInventory(ctx context.Context, graph *collection.Collection, cl
 		relationship := artifact.Relationship{
 			From: parentIdentifier,
 			To:   childIdentifier,
-			Type: artifact.DependencyOfRelationship,
+			Type: artifact.ContainsRelationship,
 		}
 		inventory.Relationships = append(inventory.Relationships, relationship)
 	}
 
 	catalog := pkg.NewCatalog(packages...)
 	inventory.Artifacts.PackageCatalog = catalog
-	versionBuilder := new(strings.Builder)
-	if err := version.GetVersion(versionBuilder); err != nil {
-		return sbom.SBOM{}, err
-	}
+
 	inventory.Descriptor = sbom.Descriptor{
 		Name:    components.ApplicationName,
-		Version: versionBuilder.String(),
+		Version: "uor-client-" + version.GetVersion(),
 	}
 
 	return inventory, nil
 }
 
-func loadCollection(ctx context.Context, graph *collection.Collection, referenece string, rootDesc ocispec.Descriptor, client registryclient.Remote) error {
+func loadCollection(ctx context.Context, graph *collection.Collection, reference string, client registryclient.Remote) error {
+	rootDesc, _, err := client.GetManifest(ctx, reference)
+	if err != nil {
+		return err
+	}
 	fetcherFn := func(ctx context.Context, desc ocispec.Descriptor) ([]byte, error) {
-		return client.GetContent(ctx, referenece, desc)
+		return client.GetContent(ctx, reference, desc)
 	}
 	return collectionloader.LoadFromManifest(ctx, graph, fetcherFn, rootDesc)
 }

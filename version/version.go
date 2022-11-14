@@ -36,16 +36,12 @@ type clientVersion struct {
 	BuildDate string
 }
 
-// GetVersion will output the templated version message.
-func GetVersion(writer io.Writer) error {
-	versionWithBuild := func() string {
-		if buildData != "" {
-			return fmt.Sprintf("%s+%s", version, buildData)
-		}
+func GetVersion() string {
+	return versionWithBuild()
+}
 
-		return version
-	}
-
+// WriteVersion will output the templated version message.
+func WriteVersion(writer io.Writer) error {
 	versionInfo := clientVersion{
 		Version:   versionWithBuild(),
 		GitCommit: commit,
@@ -60,4 +56,12 @@ func GetVersion(writer io.Writer) error {
 	}
 
 	return tmp.Execute(writer, versionInfo)
+}
+
+func versionWithBuild() string {
+	if buildData != "" {
+		return fmt.Sprintf("%s+%s", version, buildData)
+	}
+
+	return version
 }

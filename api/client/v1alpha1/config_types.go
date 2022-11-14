@@ -12,6 +12,7 @@ type DataSetConfiguration struct {
 
 // DataSetConfigurationSpec defines the configuration spec to build a single UOR collection.
 type DataSetConfigurationSpec struct {
+	// Components attaches component information to specific files.
 	Components ComponentSpec `json:"components,omitempty"`
 	// Files defines custom attributes to add the files in the
 	// workspaces when publishing content/
@@ -25,8 +26,22 @@ type DataSetConfigurationSpec struct {
 }
 
 // ComponentSpec defines configuration information when creating component lists.
+// Each field except for Platform is will allow users to set manifest-level component
+// information. All workspace items will have their component information collection on a best-effort
+// basis.
 type ComponentSpec struct {
-	Platform string `json:"platform"`
+	Platform  string   `json:"platform"`
+	Name      string   `json:"name"`
+	Version   string   `json:"version"`
+	Type      string   `json:"type"`
+	FoundBy   string   `json:"foundBy"`
+	Locations []string `json:"locations"`
+	Licenses  []string `json:"licenses"`
+	Language  string   `json:"language"`
+	// Common Platform Enumeration
+	CPEs []string `json:"cpes"`
+	// Package URL
+	PURL string `json:"purl"`
 }
 
 // File associates attributes with file names.

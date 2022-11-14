@@ -178,6 +178,19 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 		manifestAnnotations[uorspec.AnnotationLink] = string(aggregateDescJSON)
 	}
 
+	// Add user specified component information to the manifest, if applicable.
+	if config.Collection.Components.Name != "" {
+		componentAttr := descriptor.Properties{
+			Descriptor: &uorspec.DescriptorAttributes{
+				Component: uorspec.Component{},
+			},
+		}
+		componentsJSON, err := json.Marshal(componentAttr)
+		if err != nil {
+			return "", err
+		}
+		manifestAnnotations[uorspec.AnnotationUORAttributes] = string(componentsJSON)
+	}
 	_, err = client.AddManifest(ctx, reference, configDesc, manifestAnnotations, descs...)
 	if err != nil {
 		return "", err

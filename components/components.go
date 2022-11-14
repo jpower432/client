@@ -2,7 +2,6 @@ package components
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/anchore/syft/cmd/syft/cli/eventloop"
 	"github.com/anchore/syft/syft/artifact"
@@ -44,15 +43,11 @@ func generateSBOM(src *source.Source, config clientapi.DataSetConfiguration) (*s
 		return nil, err
 	}
 
-	versionBuilder := new(strings.Builder)
-	if err := version.GetVersion(versionBuilder); err != nil {
-		return nil, err
-	}
 	s := sbom.SBOM{
 		Source: src.Metadata,
 		Descriptor: sbom.Descriptor{
 			Name:          ApplicationName,
-			Version:       versionBuilder.String(),
+			Version:       version.GetVersion(),
 			Configuration: config,
 		},
 	}
