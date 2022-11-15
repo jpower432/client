@@ -10,6 +10,7 @@ import (
 
 	"github.com/anchore/syft/syft/artifact"
 	"github.com/anchore/syft/syft/file"
+	"github.com/anchore/syft/syft/formats/cyclonedxjson"
 	"github.com/anchore/syft/syft/formats/spdx22json"
 	"github.com/anchore/syft/syft/pkg"
 	"github.com/anchore/syft/syft/sbom"
@@ -44,6 +45,11 @@ var clientInventoryExamples = examples.Example{
 	CommandString: "inventory localhost:5000/myartifacts:latest",
 }
 
+const (
+	spdx      = "spdx22json"
+	cycloneDX = "cyclonedxjson"
+)
+
 // NewInventoryCmd creates a new cobra.Command for the inventory subcommand.
 func NewInventoryCmd(createOpts *CreateOptions) *cobra.Command {
 	o := InventoryOptions{CreateOptions: createOpts}
@@ -62,6 +68,8 @@ func NewInventoryCmd(createOpts *CreateOptions) *cobra.Command {
 		},
 	}
 
+	cmd.Flags().StringVarP(&o.Format, "format", "f", o.Format, "software inventory format. Options are cyclonedxjson or spdx22json. Default is spdx22json")
+
 	return cmd
 }
 
@@ -70,6 +78,10 @@ func (o *InventoryOptions) Complete(args []string) error {
 		return errors.New("bug: expecting one argument")
 	}
 	o.Source = args[0]
+
+	if o.Format == "" {
+		o.Format = spdx
+	}
 	return nil
 }
 
@@ -102,7 +114,16 @@ func (o *InventoryOptions) Run(ctx context.Context) error {
 		return err
 	}
 
-	formatter := spdx22json.Format()
+	var formatter sbom.Format
+	switch o.Format {
+	case spdx:
+		formatter = spdx22json.Format()
+	case cycloneDX:
+		formatter = cyclonedxjson.Format()
+	default:
+		return fmt.Errorf("invalid format %s", o.Format)
+	}
+
 	return formatter.Encode(o.IOStreams.Out, inventory)
 }
 
