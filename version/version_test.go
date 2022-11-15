@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetVersion(t *testing.T) {
+func TestWriteVersion(t *testing.T) {
 	type spec struct {
 		name          string
 		testVersion   string
@@ -55,7 +55,7 @@ func TestGetVersion(t *testing.T) {
 			buildDate = c.testDate
 			commit = c.testCommit
 			buildData = c.testBuildData
-			err := GetVersion(out)
+			err := WriteVersion(out)
 			if c.expError != "" {
 				require.EqualError(t, err, c.expError)
 			} else {

@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -257,10 +258,18 @@ func collectionToInventory(ctx context.Context, graph *collection.Collection, cl
 }
 
 func loadCollection(ctx context.Context, graph *collection.Collection, reference string, client registryclient.Remote) error {
-	rootDesc, _, err := client.GetManifest(ctx, reference)
+	rootDesc, manifestBytes, err := client.GetManifest(ctx, reference)
 	if err != nil {
 		return err
 	}
+
+	// Get manifest information to obtain annotations
+	var manifest ocispec.Descriptor
+	if err := json.NewDecoder(manifestBytes).Decode(&manifest); err != nil {
+		return err
+	}
+	rootDesc.Annotations = manifest.Annotations
+
 	fetcherFn := func(ctx context.Context, desc ocispec.Descriptor) ([]byte, error) {
 		return client.GetContent(ctx, reference, desc)
 	}

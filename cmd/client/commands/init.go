@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -38,13 +37,13 @@ func NewInitCmd(common *options.Common) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:           "init",
 		Short:         "Creates default UOR configuration files",
-		Example:       examples.FormatExamples(clientInspectExamples...),
+		Example:       examples.FormatExamples(clientInitExamples...),
 		SilenceErrors: false,
 		SilenceUsage:  false,
 		Run: func(cmd *cobra.Command, args []string) {
 			cobra.CheckErr(o.Complete(args))
 			cobra.CheckErr(o.Validate())
-			cobra.CheckErr(o.Run(cmd.Context()))
+			cobra.CheckErr(o.Run())
 		},
 	}
 
@@ -59,7 +58,7 @@ func (o *InitOptions) Validate() error {
 	return nil
 }
 
-func (o *InitOptions) Run(ctx context.Context) error {
+func (o *InitOptions) Run() error {
 	dsConfig := clientapi.DataSetConfiguration{
 		TypeMeta: clientapi.TypeMeta{
 			Kind:       clientapi.DataSetConfigurationKind,
