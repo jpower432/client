@@ -174,53 +174,26 @@ func (c *orasClient) LoadCollection(ctx context.Context, reference string) (coll
 	return *co, nil
 }
 
-// ResolveDigestQuery send a digest query to the attribute endpoint in a v3 registry service.
-func (c *orasClient) ResolveDigestQuery(ctx context.Context, registryHost string, digests []string) (ocispec.Index, error) {
+// ResolveQuery sends a query to the v3 attribute endpoint with
+// a predetermined link, digest and attributes query parameters.
+// The links and digests inputs are slice of digest string. The digest query
+// performs a namespace search for all occurrences of a certain digest. A link query will
+// perform a query for all manifest digests that link to the given digest. A json-formatted query
+// containing attributes will be resolved to an index of manifest satisfying the attribute query.
+func (c *orasClient) ResolveQuery(ctx context.Context, registryHost string, links, digests []string, attributes json.RawMessage) (ocispec.Index, error) {
 	var index ocispec.Index
 	queryFN := queries.QueryParamsFn(func(values url.Values) {
-		values.Add("digests", formatDigests(digests))
-	})
-	results, err := queries.ResolveQuery(ctx, registryHost, queryFN, c.authClient, c.plainHTTP)
-	if err != nil {
-		return index, fmt.Errorf("query failure for %s: %w", registryHost, err)
-	}
+		if len(digests) > 0 {
+			values.Add("digests", formatDigests(digests))
+		}
 
-	if len(results) == 0 {
-		return ocispec.Index{}, nil
-	}
+		if len(links) > 0 {
+			values.Add("links", formatDigests(links))
+		}
 
-	if err := json.Unmarshal(results, &index); err != nil {
-		return index, err
-	}
-	return index, nil
-}
-
-// ResolveLinkQuery sends a link query to the attribute endpoint in a v3 registry service.
-func (c *orasClient) ResolveLinkQuery(ctx context.Context, registryHost string, digests []string) (ocispec.Index, error) {
-	var index ocispec.Index
-	queryFN := queries.QueryParamsFn(func(values url.Values) {
-		values.Add("links", formatDigests(digests))
-	})
-	results, err := queries.ResolveQuery(ctx, registryHost, queryFN, c.authClient, c.plainHTTP)
-	if err != nil {
-		return index, fmt.Errorf("query failure for %s: %w", registryHost, err)
-	}
-
-	if len(results) == 0 {
-		return ocispec.Index{}, nil
-	}
-
-	if err := json.Unmarshal(results, &index); err != nil {
-		return index, err
-	}
-	return index, nil
-}
-
-// ResolveAttributeQuery send an attribute query to the attribute endpoint in a v3 registry service.
-func (c *orasClient) ResolveAttributeQuery(ctx context.Context, registryHost string, attributes json.RawMessage) (ocispec.Index, error) {
-	var index ocispec.Index
-	queryFN := queries.QueryParamsFn(func(values url.Values) {
-		values.Add("attributes", string(attributes))
+		if len(attributes) > 0 {
+			values.Add("attributes", string(attributes))
+		}
 	})
 
 	results, err := queries.ResolveQuery(ctx, registryHost, queryFN, c.authClient, c.plainHTTP)

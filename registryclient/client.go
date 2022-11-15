@@ -41,15 +41,13 @@ type Remote interface {
 
 // QueryResolver resolves queries for v3 compatible registries.
 type QueryResolver interface {
-	// ResolveAttributeQuery sends a query to the v3 attribute endpoint with
-	// an attribute query parameter.
-	ResolveAttributeQuery(context.Context, string, json.RawMessage) (ocispec.Index, error)
-	// ResolveDigestQuery  sends a query to the v3 attribute endpoint with
-	// a digest query parameter.
-	ResolveDigestQuery(context.Context, string, []string) (ocispec.Index, error)
-	// ResolveLinkQuery  sends a query to the v3 attribute endpoint with
-	// a link query parameter.
-	ResolveLinkQuery(context.Context, string, []string) (ocispec.Index, error)
+	// ResolveQuery sends a query to the v3 attribute endpoint with
+	// a predetermined link, digest and attributes query parameters.
+	// The links and digests inputs are slice of digest string. The digest query
+	// performs a namespace search for all occurrences of a certain digest. A link query will
+	// perform a query for all manifest digests that link to the given digest. A json-formatted query
+	// containing attributes will be resolved to an index of manifest satisfying the attribute query.
+	ResolveQuery(ctx context.Context, host string, links, digests []string, attributes json.RawMessage) (ocispec.Index, error)
 }
 
 // Local defines methods to interact with OCI artifacts
