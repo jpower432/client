@@ -88,51 +88,28 @@ func (o *AggregateOptions) Run(ctx context.Context) error {
 		return err
 	}
 
+	var queryJSON []byte
 	if len(userQuery.Attributes) != 0 {
 		// Based on the way descriptor are written the schema is always the root key.
 		constructedQuery := map[string]v1alpha1.Attributes{
 			o.SchemaID: userQuery.Attributes,
 		}
-		queryJSON, err := json.Marshal(constructedQuery)
+		queryJSON, err = json.Marshal(constructedQuery)
 		if err != nil {
 			return err
 		}
-
-		result, err := client.ResolveAttributeQuery(ctx, o.RegistryHost, queryJSON)
-		if err != nil {
-			return err
-		}
-
-		resultsJSON, err := json.MarshalIndent(result, "", "")
-		if err != nil {
-			return err
-		}
-		fmt.Fprintln(o.IOStreams.Out, string(resultsJSON))
 	}
 
-	if len(userQuery.Digests) != 0 {
-		result, err := client.ResolveDigestQuery(ctx, o.RegistryHost, userQuery.Digests)
-		if err != nil {
-			return err
-		}
-		resultsJSON, err := json.MarshalIndent(result, "", "")
-		if err != nil {
-			return err
-		}
-		fmt.Fprintln(o.IOStreams.Out, string(resultsJSON))
+	result, err := client.ResolveQuery(ctx, o.RegistryHost, userQuery.Links, userQuery.Digests, queryJSON)
+	if err != nil {
+		return err
 	}
 
-	if len(userQuery.Links) != 0 {
-		result, err := client.ResolveLinkQuery(ctx, o.RegistryHost, userQuery.Links)
-		if err != nil {
-			return err
-		}
-		resultsJSON, err := json.MarshalIndent(result, "", "")
-		if err != nil {
-			return err
-		}
-		fmt.Fprintln(o.IOStreams.Out, string(resultsJSON))
+	resultsJSON, err := json.MarshalIndent(result, " ", " ")
+	if err != nil {
+		return err
 	}
+	fmt.Fprintln(o.IOStreams.Out, string(resultsJSON))
 
 	return nil
 }
