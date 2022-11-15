@@ -182,7 +182,17 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 	if config.Collection.Components.Name != "" {
 		componentAttr := descriptor.Properties{
 			Descriptor: &uorspec.DescriptorAttributes{
-				Component: uorspec.Component{},
+				Component: uorspec.Component{
+					Name:      config.Collection.Components.Name,
+					Version:   config.Collection.Components.Version,
+					Type:      config.Collection.Components.Type,
+					FoundBy:   config.Collection.Components.FoundBy,
+					Locations: config.Collection.Components.Locations,
+					Licenses:  config.Collection.Components.Licenses,
+					Language:  config.Collection.Components.Language,
+					CPEs:      config.Collection.Components.CPEs,
+					PURL:      config.Collection.Components.PURL,
+				},
 			},
 		}
 		componentsJSON, err := json.Marshal(componentAttr)

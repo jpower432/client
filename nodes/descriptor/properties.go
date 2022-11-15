@@ -160,12 +160,12 @@ func (p *Properties) IsASchema() bool {
 }
 
 // IsAComponent returns whether the descriptor
-// has a component ID.
+// has a component name.
 func (p *Properties) IsAComponent() bool {
 	if p.Descriptor == nil {
 		return false
 	}
-	return p.Descriptor.Component.ID != ""
+	return p.Descriptor.Component.Name != ""
 }
 
 const (
