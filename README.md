@@ -644,13 +644,179 @@ Notice how only the _root.txt_ file was retrieved as only this file contained th
 # Experimental Commands
 
 ## Generate initial configuration file
-`uor-client-go init`
+Run `uor-client-go init`
+
+> WARNING: This is a work in process effort
 
 ## Query a V3 registry for content
-`uor-client-go create aggregate localhost:5000 /path/to/query -s myschema`
+### How to test
+
+#### Steps
+1. Create a schema
+```bash
+cat << EOF > schema-config.yaml
+kind: SchemaConfiguration
+apiVersion: client.uor-framework.io/v1alpha1
+schema:
+  id: myanimalschema
+  attributeTypes:
+    "animal": string
+    "size": string
+    "color": string
+    "habitat": string
+    "mammal": boolean
+EOF
+```
+
+```bash
+uor-client-go build schema schema-config.yaml localhost:5000/exercises/myschema:latest
+uor-client-go push --plain-http localhost:5000/exercises/myschema:latest
+```
+2. Create a collection
+```bash
+cat << EOF > dataset-config.yaml
+kind: DataSetConfiguration
+apiVersion: client.uor-framework.io/v1alpha1
+collection:
+  schemaAddress: "localhost:5000/exercises/myschema:latest"
+  files:
+    - file: "fish.jpg"
+      attributes:
+        animal: "fish"
+        habitat: "ocean"
+        size: "small"
+        color: "blue"
+        mammal: false
+    - file: "subdir1/dog.jpg"
+      attributes:
+        animal: "dog"
+        habitat: "house"
+        size: "medium"
+        color: "brown"
+        mammal: true
+EOF
+```
+```bash
+uor-client-go build collection test/ --plain-http localhost:5000/exercises/test:latest --dsconfig dataset-config.yaml --plain-http --no-verify
+uor-client-go push --plain-http localhost:5000/exercises/test:latest
+```
+3. Create an attribute query
+```bash
+cat << EOF > color-query.yaml
+kind: AttributeQuery
+apiVersion: client.uor-framework.io/v1alpha1
+attributes:
+  "color": "blue"
+EOF
+```
+4. Create the aggregate with the query
+```bash
+uor-client-go create aggregate localhost:5000 color-query.yaml -s my-animal-schema
+````
+
+#### Requirements
+- To successfully query a registry, it must implement the attributes API
 
 ## Create a software inventory from a collection and the links
-`uor-client-go create inventory localhost:5000/exercise/root:latest`
+### How to Test
+
+#### Steps
+1. Create a linked collection. Start by creating a leaf collection by creating a workspace directory called `leaf-workspace`.
+
+```bash
+mkdir leaf-workspace
+```
+
+2. Create a simple file called `leaf.txt` containing a single word within the workspace:
+
+```bash
+echo "leaf" > leaf-workspace/leaf.txt
+```
+
+3. Create the Dataset Configuration within a file called `leaf-dataset-config.yaml` with the following content:
+
+```bash
+cat << EOF > leaf-dataset-config.yaml
+kind: DataSetConfiguration
+apiVersion: client.uor-framework.io/v1alpha1
+collection:
+  components:
+    cpes: 
+      - "cpe:2.3:a:leaf-test:leaf-test:107.0.5304"
+    language: "go"
+    name: "leaf-package"
+    version: "v0.0.1"
+  files:
+    - file: "*.txt"
+      attributes:
+        animal: "fish"
+        habitat: "ocean"
+        size: "small"
+        color: "blue"
+        type: "leaf"
+EOF
+```
+
+4. Build and push the leaf collection to the remote registry
+
+```bash
+uor-client-go build collection leaf-workspace --plain-http localhost:5000/exercises/leaf:latest --dsconfig leaf-dataset-config.yaml
+uor-client-go push --plain-http localhost:5000/exercises/leaf:latest
+```
+
+5. Build a Root collection and link the previously built collection
+
+Create a new directory for the root collection called `root-workspace`
+
+```bash
+mkdir root-workspace
+```
+
+6. Create a simple file called `root.txt` containing a single word within the workspace:
+
+```bash
+echo "root" > root-workspace/root.txt
+```
+7. Create the Dataset Configuration within a file called `root-dataset-config.yaml` with the following content:
+
+```bash
+cat << EOF > root-dataset-config.yaml
+kind: DataSetConfiguration
+apiVersion: client.uor-framework.io/v1alpha1
+collection:
+  linkedCollections:
+  - localhost:5000/exercises/leaf:latest
+  components:
+    cpes: 
+      - "cpe:2.3:a:root-test:root-test:107.0.5304"
+    language: "go"
+    name: "root-package"
+    version: "v0.0.1"
+  files:
+    - file: "*.txt"
+      attributes:
+        animal: "cat"
+        habitat: "house"
+        size: "small"
+        color: "orange"
+        type: "root"
+EOF
+```
+8. Build and push the root collection to the remote registry
+
+```bash
+uor-client-go build collection root-workspace --plain-http localhost:5000/exercises/root:latest --dsconfig root-dataset-config.yaml
+uor-client-go push --plain-http localhost:5000/exercises/root:latest
+uor-client-go push --plain-http localhost:5000/exercises/root:latest-aggregate
+```
+9. Create inventory
+```bash
+uor-client-go create inventory localhost:5000/exercises/root:latest --plain-http
+```
+
+> TIP: To avoid the requirement to manually input component information, test with a file that is already in a packaged format. This has been successfully tested with rpms.
+#### Requirements
+- To publish a linked collection, a registry that support sparse manifests lists is required
 
 # Glossary
 

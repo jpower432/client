@@ -245,7 +245,9 @@ func collectionToInventory(ctx context.Context, graph *collection.Collection, cl
 				return nil, err
 			}
 
-			return graph.From(node.ID()), nil
+			// Get new loaded link node
+			loadedLinkNode := graph.NodeByID(node.ID())
+			successors = append(successors, loadedLinkNode)
 		}
 
 		return successors, err
