@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -24,6 +25,7 @@ import (
 type BuildSchemaOptions struct {
 	*BuildOptions
 	SchemaConfig string
+	SchemaPath   string
 }
 
 var clientBuildSchemaExamples = []examples.Example{
@@ -97,9 +99,21 @@ func (o *BuildSchemaOptions) Run(ctx context.Context) error {
 		}
 	}()
 
-	generatedSchema, err := schema.FromTypes(config.Schema.AttributeTypes)
-	if err != nil {
-		return err
+	var userSchema schema.Loader
+	if config.Schema.SchemaPath != "" {
+		schemaBytes, err := ioutil.ReadFile(config.Schema.SchemaPath)
+		if err != nil {
+			return err
+		}
+		userSchema, err = schema.FromBytes(schemaBytes)
+		if err != nil {
+			return err
+		}
+	} else {
+		userSchema, err = schema.FromTypes(config.Schema.AttributeTypes)
+		if err != nil {
+			return err
+		}
 	}
 
 	schemaAnnotations := map[string]string{}
@@ -114,7 +128,7 @@ func (o *BuildSchemaOptions) Run(ctx context.Context) error {
 		return err
 	}
 	schemaAnnotations[uorspec.AnnotationUORAttributes] = string(schemaJSON)
-	desc, err := client.AddContent(ctx, uorspec.MediaTypeSchemaDescriptor, generatedSchema.Export(), schemaAnnotations)
+	desc, err := client.AddContent(ctx, uorspec.MediaTypeSchemaDescriptor, userSchema.Export(), schemaAnnotations)
 	if err != nil {
 		return err
 	}
