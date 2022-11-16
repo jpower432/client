@@ -1,5 +1,7 @@
 package v1alpha1
 
+import ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 // DataSetConfigurationKind object kind of DataSetConfiguration.
 const DataSetConfigurationKind = "DataSetConfiguration"
 
@@ -14,6 +16,8 @@ type DataSetConfiguration struct {
 type DataSetConfigurationSpec struct {
 	// Components attaches component information to specific files.
 	Components ComponentSpec `json:"components,omitempty"`
+	// Runtime attaches runtime information to the artifact manifest
+	Runtime ocispec.ImageConfig `json:"runtime,omitempty"`
 	// Files defines custom attributes to add the files in the
 	// workspaces when publishing content/
 	Files []File `json:"files,omitempty"`

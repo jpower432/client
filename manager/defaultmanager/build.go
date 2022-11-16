@@ -178,29 +178,39 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 		manifestAnnotations[uorspec.AnnotationLink] = string(aggregateDescJSON)
 	}
 
+	var prop descriptor.Properties
 	// Add user specified component information to the manifest, if applicable.
 	if config.Collection.Components.Name != "" {
-		componentAttr := descriptor.Properties{
-			Descriptor: &uorspec.DescriptorAttributes{
-				Component: uorspec.Component{
-					Name:      config.Collection.Components.Name,
-					Version:   config.Collection.Components.Version,
-					Type:      config.Collection.Components.Type,
-					FoundBy:   config.Collection.Components.FoundBy,
-					Locations: config.Collection.Components.Locations,
-					Licenses:  config.Collection.Components.Licenses,
-					Language:  config.Collection.Components.Language,
-					CPEs:      config.Collection.Components.CPEs,
-					PURL:      config.Collection.Components.PURL,
-				},
+		d.logger.Debugf("Component information detected. Adding inder core-descriptor schema.")
+		componentAttr := &uorspec.DescriptorAttributes{
+			Component: uorspec.Component{
+				Name:      config.Collection.Components.Name,
+				Version:   config.Collection.Components.Version,
+				Type:      config.Collection.Components.Type,
+				FoundBy:   config.Collection.Components.FoundBy,
+				Locations: config.Collection.Components.Locations,
+				Licenses:  config.Collection.Components.Licenses,
+				Language:  config.Collection.Components.Language,
+				CPEs:      config.Collection.Components.CPEs,
+				PURL:      config.Collection.Components.PURL,
 			},
 		}
-		componentsJSON, err := json.Marshal(componentAttr)
-		if err != nil {
-			return "", err
-		}
-		manifestAnnotations[uorspec.AnnotationUORAttributes] = string(componentsJSON)
+		prop.Descriptor = componentAttr
 	}
+
+	// Add user specified runtime information to the manifest, if applicable.
+
+	if len(config.Collection.Runtime.Cmd) != 0 && len(config.Collection.Runtime.Entrypoint) != 0 {
+		d.logger.Debugf("Runtime attributes detected. Adding under core-runtime schema")
+		prop.Runtime = &config.Collection.Runtime
+	}
+
+	propsJSON, err := prop.MarshalJSON()
+	if err != nil {
+		return "", err
+	}
+	manifestAnnotations[uorspec.AnnotationUORAttributes] = string(propsJSON)
+
 	_, err = client.AddManifest(ctx, reference, configDesc, manifestAnnotations, descs...)
 	if err != nil {
 		return "", err

@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/buger/jsonparser"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
 
 	"github.com/uor-framework/uor-client-go/attributes"
@@ -20,6 +21,7 @@ var _ model.AttributeSet = &Properties{}
 
 // Properties define all properties an UOR collection descriptor can have.
 type Properties struct {
+	Runtime    *ocispec.ImageConfig          `json:"core-runtime,omitempty"`
 	Link       *uorspec.LinkAttributes       `json:"core-link,omitempty"`
 	Descriptor *uorspec.DescriptorAttributes `json:"core-descriptor,omitempty"`
 	Schema     *uorspec.SchemaAttributes     `json:"core-schema,omitempty"`
@@ -168,10 +170,17 @@ func (p *Properties) IsAComponent() bool {
 	return p.Descriptor.Component.Name != ""
 }
 
+// HasRuntimeInfo returns whether the descriptor
+// has runtime information set.
+func (p *Properties) HasRuntimeInfo() bool {
+	return p.Runtime != nil
+}
+
 const (
 	TypeLink       = "core-link"
 	TypeDescriptor = "core-descriptor"
 	TypeSchema     = "core-schema"
+	TypeRuntime    = "core-runtime"
 )
 
 // Parse attempt to resolve attribute types in a set of json.RawMessage types
@@ -204,6 +213,12 @@ func Parse(in map[string]json.RawMessage) (*Properties, error) {
 				errs = append(errs, ParseError{Key: key, Err: err})
 			}
 			out.Schema = &s
+		case TypeRuntime:
+			var s ocispec.ImageConfig
+			if err := json.Unmarshal(prop, &s); err != nil {
+				errs = append(errs, ParseError{Key: key, Err: err})
+			}
+			out.Runtime = &s
 		default:
 			set := attributes.Attributes{}
 			handler := func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) (err error) {
