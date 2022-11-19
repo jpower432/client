@@ -818,11 +818,6 @@ uor-client-go create inventory localhost:5000/exercises/root:latest --plain-http
 #### Requirements
 - To publish a linked collection, a registry that support sparse manifests lists is required
 
-# Glossary
-
-`collection`: a collection of linked files represented as on OCI artifact
-`schema`: the properties and datatypes that can be specified within a collection
-
 ## Publish content to use with a container runtime
 #### Steps
 1. Create a simple Go application
@@ -859,3 +854,8 @@ EOF
 uor-client-go build collection myworkspace --plain-http localhost:5000/exercises/runtime:latest --dsconfig dataset-config.yaml
 uor-client-go push --plain-http localhost:5000/exercises/runtime:latest
 ```
+
+# Glossary
+
+`collection`: a collection of linked files represented as on OCI artifact
+`schema`: the properties and datatypes that can be specified within a collection
