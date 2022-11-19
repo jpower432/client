@@ -15,8 +15,6 @@ import (
 	"github.com/uor-framework/uor-client-go/util/errlist"
 )
 
-// QUESTION(jpower432): Would filtering descriptors for core attribute be helpful at the client level?
-
 var _ model.AttributeSet = &Properties{}
 
 // Properties define all properties an UOR collection descriptor can have.
@@ -25,6 +23,7 @@ type Properties struct {
 	Link       *uorspec.LinkAttributes       `json:"core-link,omitempty"`
 	Descriptor *uorspec.DescriptorAttributes `json:"core-descriptor,omitempty"`
 	Schema     *uorspec.SchemaAttributes     `json:"core-schema,omitempty"`
+	File       *uorspec.File                 `json:"core-file,omitempty"`
 	// A map of attribute sets where the string is the schema ID.
 	Others map[string]model.AttributeSet `json:"-"`
 }
@@ -176,15 +175,22 @@ func (p *Properties) HasRuntimeInfo() bool {
 	return p.Runtime != nil
 }
 
+// HasFileInfo returns whether the descriptor
+// has file information set.
+func (p *Properties) HasFileInfo() bool {
+	return p.File != nil
+}
+
 const (
 	TypeLink       = "core-link"
 	TypeDescriptor = "core-descriptor"
 	TypeSchema     = "core-schema"
 	TypeRuntime    = "core-runtime"
+	TypeFile       = "core-file"
 )
 
 // Parse attempt to resolve attribute types in a set of json.RawMessage types
-// into known Manifest, Descriptor, and Schema types and adds unknown attributes to
+// into known types and adds unknown attributes to
 // an attribute set, if supported.
 func Parse(in map[string]json.RawMessage) (*Properties, error) {
 	var out Properties
@@ -211,14 +217,22 @@ func Parse(in map[string]json.RawMessage) (*Properties, error) {
 			var s uorspec.SchemaAttributes
 			if err := json.Unmarshal(prop, &s); err != nil {
 				errs = append(errs, ParseError{Key: key, Err: err})
+				continue
 			}
 			out.Schema = &s
 		case TypeRuntime:
-			var s ocispec.ImageConfig
-			if err := json.Unmarshal(prop, &s); err != nil {
+			var r ocispec.ImageConfig
+			if err := json.Unmarshal(prop, &r); err != nil {
+				errs = append(errs, ParseError{Key: key, Err: err})
+				continue
+			}
+			out.Runtime = &r
+		case TypeFile:
+			var f uorspec.File
+			if err := json.Unmarshal(prop, &f); err != nil {
 				errs = append(errs, ParseError{Key: key, Err: err})
 			}
-			out.Runtime = &s
+			out.File = &f
 		default:
 			set := attributes.Attributes{}
 			handler := func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) (err error) {

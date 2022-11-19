@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"regexp"
+	"strings"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
@@ -49,15 +51,38 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 		return "", fmt.Errorf("path %q empty workspace", space.Path("."))
 	}
 
-	attributesByFile := map[string]model.AttributeSet{}
 	var sets []model.AttributeSet
+	regexpByFilename := map[string]*regexp.Regexp{}
+	fileInfoByName := map[string]fileInformation{}
 	for _, file := range config.Collection.Files {
+		// Process each key into a regular expression and store it.
+
+		// If the config has a grouping declared, make a valid regex.
+		var expression string
+		if strings.Contains(file.File, "*") && !strings.Contains(file.File, ".*") {
+			expression = strings.Replace(file.File, "*", ".*", -1)
+		} else {
+			expression = strings.Replace(file.File, file.File, "^"+file.File+"$", -1)
+		}
+
+		nameSearch, err := regexp.Compile(expression)
+		if err != nil {
+			return "", err
+		}
+		regexpByFilename[file.File] = nameSearch
+
 		set, err := load.ConvertToModel(file.Attributes)
 		if err != nil {
 			return "", err
 		}
 		sets = append(sets, set)
-		attributesByFile[file.File] = set
+
+		fileInfo := fileInformation{
+			AttributeSet: set,
+			File:         file.FileInfo,
+		}
+
+		fileInfoByName[file.File] = fileInfo
 	}
 
 	// Merge the sets to ensure the dataset configuration
@@ -146,8 +171,44 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 		nodes = append(nodes, *node)
 	}
 
+	updateFN := func(node v2.Node) error {
+		if node.Location == "" {
+			return nil
+		}
+
+		var sets []model.AttributeSet
+		var fileConfig []uorspec.File
+		for file, fileInfo := range fileInfoByName {
+			nameSearch := regexpByFilename[file]
+			if nameSearch.Match([]byte(node.Location)) {
+				if fileInfo.HasAttributes() {
+					sets = append(sets, fileInfo.AttributeSet)
+				}
+				if fileInfo.HasFileInfo() {
+					fileConfig = append(fileConfig, fileInfo.File)
+				}
+			}
+		}
+
+		switch {
+		case len(fileConfig) == 1:
+			node.Properties.File = &fileConfig[0]
+		case len(fileConfig) > 1:
+			return fmt.Errorf("file %q: more than one match for file configuration", node.Location)
+		}
+
+		merged, err := attributes.Merge(sets...)
+		if err != nil {
+			return err
+		}
+		if err := node.Properties.Merge(map[string]model.AttributeSet{schemaID: merged}); err != nil {
+			return fmt.Errorf("file %s: %w", node.Location, err)
+		}
+		return nil
+	}
+
 	// Add user provided attributes to node properties
-	descs, err = v2.UpdateDescriptors(nodes, schemaID, attributesByFile)
+	descs, err = v2.UpdateDescriptors(nodes, updateFN)
 	if err != nil {
 		return "", err
 	}
@@ -199,8 +260,7 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 	}
 
 	// Add user specified runtime information to the manifest, if applicable.
-
-	if len(config.Collection.Runtime.Cmd) != 0 && len(config.Collection.Runtime.Entrypoint) != 0 {
+	if len(config.Collection.Runtime.Cmd) != 0 || len(config.Collection.Runtime.Entrypoint) != 0 {
 		d.logger.Debugf("Runtime attributes detected. Adding under core-runtime schema")
 		prop.Runtime = &config.Collection.Runtime
 	}
@@ -300,4 +360,19 @@ func fetchJSONSchema(ctx context.Context, schemaAddress string, store content.At
 
 	sc, err := schema.New(loader)
 	return sc, schemaID, err
+}
+
+// fileInformation pairs information configurable
+// file attributes for comparison.
+type fileInformation struct {
+	model.AttributeSet
+	uorspec.File
+}
+
+func (f fileInformation) HasAttributes() bool {
+	return f.AttributeSet.Len() > 0
+}
+
+func (f fileInformation) HasFileInfo() bool {
+	return f.Permissions != 0 || f.UID != -1 || f.GID != -1
 }

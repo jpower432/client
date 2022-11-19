@@ -1,6 +1,11 @@
 package v1alpha1
 
-import ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+import (
+	"encoding/json"
+
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
+)
 
 // DataSetConfigurationKind object kind of DataSetConfiguration.
 const DataSetConfigurationKind = "DataSetConfiguration"
@@ -53,6 +58,29 @@ type File struct {
 	// File is a string that can be compiled into a regular expression
 	// for grouping attributes.
 	File string `json:"file,omitempty"`
+	// FileInfo sets target path, ownership, and
+	// permissions for files that can be used with container runtimes.
+	FileInfo uorspec.File `json:"fileInfo,omitempty"`
 	// Attributes is the lists of to associate to the file.
 	Attributes Attributes `json:"attributes,omitempty"`
+}
+
+// UnmarshalJSON sets custom unmarshalling logic to File.
+// In this case it sets the default UID and GID to invalid
+// ID numbers to differentiate between values intentionally set at 0.
+func (f *File) UnmarshalJSON(data []byte) error {
+	type fileAlias File
+	test := &fileAlias{
+		FileInfo: uorspec.File{
+			UID: -1,
+			GID: -1,
+		},
+	}
+
+	err := json.Unmarshal(data, test)
+	if err != nil {
+		return err
+	}
+	*f = File(*test)
+	return nil
 }
