@@ -228,7 +228,7 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 	// Build index manifest
 	manifestAnnotations := map[string]string{}
 	if len(config.Collection.LinkedCollections) != 0 {
-		aggregateDesc, err := d.addLinks(ctx, client, reference, config.Collection.LinkedCollections)
+		aggregateDesc, err := d.addLinks(ctx, client, config.Collection.LinkedCollections)
 		if err != nil {
 			return "", err
 		}
@@ -285,13 +285,13 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 	return desc.Digest.String(), nil
 }
 
-func (d DefaultManager) addLinks(ctx context.Context, client registryclient.Client, reference string, links []string) (ocispec.Descriptor, error) {
+func (d DefaultManager) addLinks(ctx context.Context, client registryclient.Client, links []string) ([]ocispec.Descriptor, error) {
 	d.logger.Infof("Processing %d links for aggregate", len(links))
 	var linkedDesc []ocispec.Descriptor
 	for _, l := range links {
 		desc, _, err := client.GetManifest(ctx, l)
 		if err != nil {
-			return ocispec.Descriptor{}, fmt.Errorf("link %q: %w", l, err)
+			return nil, fmt.Errorf("link %q: %w", l, err)
 		}
 		if desc.Annotations == nil {
 			desc.Annotations = map[string]string{}
@@ -299,7 +299,7 @@ func (d DefaultManager) addLinks(ctx context.Context, client registryclient.Clie
 
 		ref, err := registry.ParseReference(l)
 		if err != nil {
-			return ocispec.Descriptor{}, fmt.Errorf("link %q: %w", l, err)
+			return nil, fmt.Errorf("link %q: %w", l, err)
 		}
 		linkAttr := descriptor.Properties{
 			Link: &uorspec.LinkAttributes{
@@ -310,22 +310,12 @@ func (d DefaultManager) addLinks(ctx context.Context, client registryclient.Clie
 		}
 		linkJSON, err := json.Marshal(linkAttr)
 		if err != nil {
-			return ocispec.Descriptor{}, err
+			return nil, err
 		}
 		desc.Annotations[uorspec.AnnotationUORAttributes] = string(linkJSON)
 		linkedDesc = append(linkedDesc, desc)
 	}
-	aggregateRef := fmt.Sprintf("%s-aggregate", reference)
-	desc, err := client.AddIndex(ctx, aggregateRef, nil, linkedDesc...)
-	if err != nil {
-		return ocispec.Descriptor{}, fmt.Errorf("aggregate reference %s: %w", aggregateRef, err)
-	}
-	d.logger.Infof("Aggregate %s built with reference name %s\n", desc.Digest, aggregateRef)
-	aggregateDesc, err := client.Save(ctx, aggregateRef, d.store)
-	if err != nil {
-		return ocispec.Descriptor{}, fmt.Errorf("client save error for reference %s: %v", aggregateRef, err)
-	}
-	return aggregateDesc, nil
+	return linkedDesc, nil
 }
 
 // fetchJSONSchema returns a schema type from a content store and a schema address.

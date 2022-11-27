@@ -40,7 +40,7 @@ func LoadFromManifest(ctx context.Context, graph *collection.Collection, fetcher
 			return nil, traversal.ErrSkip
 		}
 
-		// We do not want to expect to traversal outside the repo doing this
+		// We do not want to expect to traverse outside the repo doing this
 		// traversal, so we just make the links leaf nodes that can be
 		// lazily loaded.
 
@@ -147,11 +147,11 @@ func getSuccessors(ctx context.Context, fetcher FetcherFunc, node ocispec.Descri
 		if manifest.Annotations != nil {
 			link, ok := manifest.Annotations[uorspec.AnnotationLink]
 			if ok {
-				var desc ocispec.Descriptor
-				if err := json.Unmarshal([]byte(link), &desc); err != nil {
+				var descs []ocispec.Descriptor
+				if err := json.Unmarshal([]byte(link), &descs); err != nil {
 					return nil, err
 				}
-				nodes = append(nodes, desc)
+				nodes = append(nodes, descs...)
 			}
 		}
 		return nodes, nil

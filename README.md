@@ -807,7 +807,6 @@ EOF
 ```bash
 uor-client-go build collection root-workspace --plain-http localhost:5000/exercises/root:latest --dsconfig root-dataset-config.yaml
 uor-client-go push --plain-http localhost:5000/exercises/root:latest
-uor-client-go push --plain-http localhost:5000/exercises/root:latest-aggregate
 ```
 9. Create inventory
 ```bash
