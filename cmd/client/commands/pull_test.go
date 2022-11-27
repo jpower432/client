@@ -18,7 +18,6 @@ import (
 	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"oras.land/oras-go/v2"
-	orascontent "oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/content/memory"
 	orasregistry "oras.land/oras-go/v2/registry"
 	"oras.land/oras-go/v2/registry/remote"
@@ -284,7 +283,7 @@ func prepTestArtifact(t *testing.T, ref string) {
 	fileContent := []byte("Hello World!\n")
 
 	aggregateRef := fmt.Sprintf("%s-aggregate", ref)
-	aggregateDesc := prepAggregate(t, aggregateRef)
+	aggregateDesc := prepLinks(t, aggregateRef)
 
 	aggregationJSON, err := json.Marshal(aggregateDesc)
 	require.NoError(t, err)
@@ -296,9 +295,9 @@ func prepTestArtifact(t *testing.T, ref string) {
 	require.NoError(t, err)
 }
 
-// prepAggregate will push an aggregate into the
+// prepLinks will push links into the
 // registry for retrieval. Uses methods from oras-go.
-func prepAggregate(t *testing.T, ref string) ocispec.Descriptor {
+func prepLinks(t *testing.T, ref string) []ocispec.Descriptor {
 	fileName := "aggregate.txt"
 	fileContent := []byte("Hello Again World!\n")
 	ref1 := fmt.Sprintf("%s-ref1", ref)
@@ -328,42 +327,7 @@ func prepAggregate(t *testing.T, ref string) ocispec.Descriptor {
 	desc2, err := publishFunc(fileName2, ref2, fileContent2, map[string]string{"test": "annotation"}, ref2Annotations)
 	require.NoError(t, err)
 
-	memoryStore := memory.New()
-	manifest, err := generateIndex(nil, desc1, desc2)
-	require.NoError(t, err)
-
-	manifestDesc, err := pushBlob(context.Background(), ocispec.MediaTypeImageIndex, manifest, memoryStore)
-	require.NoError(t, err)
-
-	err = memoryStore.Tag(context.Background(), manifestDesc, ref)
-	require.NoError(t, err)
-
-	repo, err := remote.NewRepository(ref)
-	require.NoError(t, err)
-	repo.PlainHTTP = true
-	copyOpts := oras.DefaultCopyOptions
-
-	// Skip the links
-	successorFn := func(ctx context.Context, fetcher orascontent.Fetcher, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
-		successors, err := orascontent.Successors(ctx, fetcher, desc)
-		if err != nil {
-			return nil, err
-		}
-
-		var filtered []ocispec.Descriptor
-		for _, s := range successors {
-			if s.Digest.String() == desc1.Digest.String() || s.Digest.String() == desc2.Digest.String() {
-				continue
-			}
-			filtered = append(filtered, s)
-		}
-
-		return filtered, nil
-	}
-	copyOpts.FindSuccessors = successorFn
-	desc, err := oras.Copy(context.TODO(), memoryStore, ref, repo, "", copyOpts)
-	require.NoError(t, err)
-	return desc
+	return []ocispec.Descriptor{desc1, desc2}
 }
 
 func publishFunc(fileName, ref string, fileContent []byte, layerAnnotations, manifestAnnotations map[string]string) (ocispec.Descriptor, error) {
