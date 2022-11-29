@@ -286,7 +286,7 @@ func (d DefaultManager) Build(ctx context.Context, space workspace.Workspace, co
 }
 
 func (d DefaultManager) addLinks(ctx context.Context, client registryclient.Client, links []string) ([]ocispec.Descriptor, error) {
-	d.logger.Infof("Processing %d links for aggregate", len(links))
+	d.logger.Infof("Processing %d link(s)", len(links))
 	var linkedDesc []ocispec.Descriptor
 	for _, l := range links {
 		desc, _, err := client.GetManifest(ctx, l)
