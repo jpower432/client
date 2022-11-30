@@ -158,15 +158,23 @@ func (c *orasClient) LoadCollection(ctx context.Context, reference string) (coll
 		return value.(collection.Collection), nil
 	}
 
-	desc, _, err := c.GetManifest(ctx, reference)
+	rootDesc, manifestBytes, err := c.GetManifest(ctx, reference)
 	if err != nil {
+		return collection.Collection{}, nil
+	}
+
+	// Get manifest information to obtain annotations
+	var manifest ocispec.Descriptor
+	if err := json.NewDecoder(manifestBytes).Decode(&manifest); err != nil {
 		return collection.Collection{}, err
 	}
+	rootDesc.Annotations = manifest.Annotations
 	fetcherFn := func(ctx context.Context, desc ocispec.Descriptor) ([]byte, error) {
 		return c.GetContent(ctx, reference, desc)
 	}
+
 	co := collection.New(reference)
-	if err := collectionloader.LoadFromManifest(ctx, co, fetcherFn, desc); err != nil {
+	if err := collectionloader.LoadFromManifest(ctx, co, fetcherFn, rootDesc); err != nil {
 		return collection.Collection{}, err
 	}
 	co.Location = reference

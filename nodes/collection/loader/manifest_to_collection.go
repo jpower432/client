@@ -186,11 +186,11 @@ func getSuccessors(ctx context.Context, fetcher FetcherFunc, node ocispec.Descri
 		if manifest.Annotations != nil {
 			link, ok := manifest.Annotations[uorspec.AnnotationLink]
 			if ok {
-				var desc ocispec.Descriptor
-				if err := json.Unmarshal([]byte(link), &desc); err != nil {
+				var descs []ocispec.Descriptor
+				if err := json.Unmarshal([]byte(link), &descs); err != nil {
 					return nil, err
 				}
-				nodes = append(nodes, desc)
+				nodes = append(nodes, descs...)
 			}
 		}
 
