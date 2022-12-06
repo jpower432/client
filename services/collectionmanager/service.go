@@ -216,8 +216,8 @@ func (s *service) RetrieveContent(ctx context.Context, message *managerapi.Retri
 	return &managerapi.Retrieve_Response{Digests: digests}, nil
 }
 
-// RetrieveLayer retrieves a layer of a collection from a storage provider based on client input.
-func (s *service) RetrieveLayer(ctx context.Context, message *managerapi.ReadLayer_Request) (*managerapi.ReadLayer_Response, error) {
+// ReadLayer retrieves a layer of a collection from a storage provider based on client input.
+func (s *service) ReadLayer(ctx context.Context, message *managerapi.ReadLayer_Request) (*managerapi.ReadLayer_Response, error) {
 	authConf := authConfig{message.Auth}
 	client, err := orasclient.NewClient(
 		orasclient.WithCache(s.options.PullCache),
