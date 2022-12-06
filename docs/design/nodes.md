@@ -12,8 +12,8 @@
 The model.Node types must implement the following methods:
 
 - ID: This is a string ID that **MUST** be unique with the implemented graph are sub-graph.
-- Address: This represent the location of the node whether it be a relative or absolute path on disk or the registry path for a remote location.
-- Attributes: This is a collection of key, values pair that represent information about the node. Example for a file could be name, size, and file type.
+- Address: This represents the location of the node, whether it be a relative or absolute path on disk, or the registry path for a remote location.
+- Attributes: This is a collection of key, values pairs that represents information about the node. Example for a file could be name, size, and file type.
 
 ## Basic Node
 
@@ -22,7 +22,7 @@ types or references within a Collection node.
 
 ## Descriptor Node
 
-A descriptor node represent an OCI descriptor in a UOR dataset. This can be part of a structure alongside Collection node
+A descriptor node represents an OCI descriptor in a UOR dataset. This can be part of a structure alongside Collection node
 types or references within a Collection node. When using a UOR Collection to describe an OCI DAG, descriptor nodes are useful within 
 collection nodes.
 

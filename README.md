@@ -60,7 +60,7 @@ uor-client-go build schema schema-config.yaml localhost:5000/myschema:latest
 
 ### Build workspace into an artifact
 
-Execute the following command to build a workspace into an an artifact:
+Execute the following command to build a workspace into an artifact:
 
 ```shell
 uor-client-go build collection my-workspace localhost:5000/myartifacts:latest

@@ -49,9 +49,9 @@ and allow a flag to preserve the manifest, if desired.
 ## Collection Manager
 
 Collection publishing and pulling can be accomplished over gRPC with the `serve` command. 
-The client acts as a gRPC server that will retrieve and publish collections upon client request. 
+The UOR client acts as a gRPC server that will retrieve and publish collections upon the gRPC client request. 
 A top-level type called `Manager` is used to provide this functionality to the CLI and gRPC server. There is a default implementation located 
 in the `manager` package that is currently used.
 
-The gRPC server is reading and writing in locations relative to its instantiated location. Due to this, a unix domain socket is used for client/server communication. gRPC client
+The gRPC server is reading and writing in locations relative to its instantiated location. Due to this, a unix domain socket is used for client/server communication. The gRPC client
 must provide absolute pathing for expected results.
