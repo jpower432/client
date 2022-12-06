@@ -2,10 +2,12 @@ package collectionmanager
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/structpb"
 	"oras.land/oras-go/v2/content/file"
 
 	"github.com/uor-framework/uor-client-go/api/client/v1alpha1"
@@ -40,6 +42,65 @@ func FromManager(mg manager.Manager, serviceOptions ServiceOptions) managerapi.C
 		mg:      mg,
 		options: serviceOptions,
 	}
+}
+
+func (s *service) ListContent(ctx context.Context, message *managerapi.List_Request) (*managerapi.List_Response, error) {
+	attrSet, err := config.ConvertToModel(message.Filter.AsMap())
+	if err != nil {
+		return &managerapi.List_Response{}, status.Error(codes.Internal, err.Error())
+	}
+
+	authConf := authConfig{message.Auth}
+	var matcher matchers.PartialAttributeMatcher = attrSet.List()
+	client, err := orasclient.NewClient(
+		orasclient.WithCache(s.options.PullCache),
+		orasclient.WithCredentialFunc(authConf.Credential),
+		orasclient.WithPlainHTTP(s.options.PlainHTTP),
+		orasclient.SkipTLSVerify(s.options.Insecure),
+		orasclient.WithPullableAttributes(matcher),
+	)
+	if err != nil {
+		return &managerapi.List_Response{}, status.Error(codes.Internal, err.Error())
+	}
+	defer func() {
+		if err := client.Destroy(); err != nil {
+			fmt.Println(err.Error())
+		}
+	}()
+
+	collection, err := client.LoadCollection(ctx, message.Source)
+	if err != nil {
+		return &managerapi.List_Response{}, status.Error(codes.Internal, err.Error())
+	}
+
+	resultCollection := managerapi.Collection{
+		SchemaAddress:     "",
+		LinkedCollections: nil,
+		Files:             nil,
+	}
+	var files []*managerapi.File
+
+	nodes := collection.Nodes()
+	for _, node := range nodes {
+		attributesJSON := node.Attributes().AsJSON()
+		spb := &structpb.Struct{}
+		err := json.Unmarshal(attributesJSON, spb)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		files = append(files, &managerapi.File{
+			File:       node.ID(),
+			Attributes: spb,
+		})
+	}
+	resultCollection.Files = files
+
+	listResponse := managerapi.List_Response{
+		Collection:  &resultCollection,
+		Diagnostics: nil,
+	}
+	return &listResponse, nil
+
 }
 
 // PublishContent publishes collection content to a storage provide based on client input.
@@ -150,3 +211,34 @@ func (s *service) RetrieveContent(ctx context.Context, message *managerapi.Retri
 
 	return &managerapi.Retrieve_Response{Digests: digests}, nil
 }
+
+// RetrieveLayer retrieves a layer of a collection from a storage provider based on client input.
+func (s *service) RetrieveLayer(ctx context.Context, message *managerapi.ReadLayer_Request) (*managerapi.ReadLayer_Response, error) {
+	authConf := authConfig{message.Auth}
+	client, err := orasclient.NewClient(
+		orasclient.WithCache(s.options.PullCache),
+		orasclient.WithCredentialFunc(authConf.Credential),
+		orasclient.WithPlainHTTP(s.options.PlainHTTP),
+		orasclient.SkipTLSVerify(s.options.Insecure),
+	)
+	if err != nil {
+		return &managerapi.ReadLayer_Response{}, status.Error(codes.Internal, err.Error())
+	}
+	defer func() {
+		if err := client.Destroy(); err != nil {
+			fmt.Println(err.Error())
+		}
+	}()
+
+	layerBytes, err := s.mg.ReadLayer(ctx, message.Source, message.LayerTitle, client)
+	if err != nil {
+		return &managerapi.ReadLayer_Response{}, status.Error(codes.Internal, err.Error())
+	}
+
+	return &managerapi.ReadLayer_Response{Binary: layerBytes}, nil
+}
+
+//// ReadContentStream retrieves a layer's data from a storage provider based on client input.
+//func (s *service) ReadContentStream(ctx context.Context, message *managerapi.ReadLayerStream_Request, responseStream *managerapi.ReadLayerStream_Response) error {
+//	// TODO
+//}

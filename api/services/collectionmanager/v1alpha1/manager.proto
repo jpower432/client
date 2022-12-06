@@ -13,10 +13,17 @@ package manager;
 // CollectionManager is an endpoint that can retrieve and publish Collection
 // contents for clients.
 service CollectionManager {
+  // ListContent lists content based on the request.
+  rpc ListContent(List.Request) returns (List.Response) {}
   // PublishContent publishes content based on the request.
   rpc PublishContent(Publish.Request) returns (Publish.Response) {}
   // RetrieveContent retrieves content based on the request.
   rpc RetrieveContent(Retrieve.Request) returns (Retrieve.Response) {}
+  // RetrieveContentStream retrieves content based on the request.
+  rpc ReadLayer(ReadLayer.Request) returns (ReadLayer.Response) {}
+//  // TODO - switch to stream response for robustness
+//  // ReadLayerStream retrieves content based on the request.
+//  rpc ReadLayerStream(ReadStream.Request) returns (stream ReadStream.Response) {}
 }
 
 message Diagnostic {
@@ -30,6 +37,18 @@ message Diagnostic {
   string detail = 3;
 }
 
+message List {
+  message Request {
+    string source = 1;
+    google.protobuf.Struct filter = 2;
+    AuthConfig auth = 3;
+  }
+  message Response {
+    Collection collection = 1;
+    repeated Diagnostic diagnostics = 2;
+  }
+}
+
 message Retrieve {
   message Request {
     string source = 1;
@@ -40,6 +59,33 @@ message Retrieve {
   message Response {
     repeated string digests = 1;
     repeated Diagnostic diagnostics = 2;
+  }
+}
+
+message ReadLayer {
+  message Request {
+    string source = 1;
+    string layer_title = 2; // layerInfo.Annotations[ocispec.AnnotationTitle]
+    AuthConfig auth = 3;
+  }
+  message Response {
+    Diagnostic diagnostic = 1;
+    bytes binary = 2;
+  }
+}
+
+message ReadLayerStream {
+  message Request {
+    string source = 1;
+    string destination = 2;
+    google.protobuf.Struct filter = 3;
+    AuthConfig auth = 4;
+  }
+  message Response {
+    oneof data {
+      Diagnostic diagnostic = 1;
+      bytes chunk = 2;
+    }
   }
 }
 

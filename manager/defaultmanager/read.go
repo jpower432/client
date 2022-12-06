@@ -1,0 +1,54 @@
+package defaultmanager
+
+import (
+	"context"
+
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
+	"github.com/uor-framework/uor-client-go/attributes"
+	"github.com/uor-framework/uor-client-go/nodes/descriptor"
+	"github.com/uor-framework/uor-client-go/ocimanifest"
+	"github.com/uor-framework/uor-client-go/registryclient"
+)
+
+func (d DefaultManager) ReadLayer(ctx context.Context, source string, title string, remote registryclient.Remote) ([]byte, error) {
+	graph, err := remote.LoadCollection(ctx, source)
+	if err != nil {
+		return nil, err
+	}
+	var target ocispec.Descriptor
+	titleAttribute := attributes.NewString(ocispec.AnnotationTitle, title)
+	for _, node := range graph.Nodes() {
+		// Check that this is a descriptor node and the blob is
+		// not a config or schema resource.
+		desc, ok := node.(*descriptor.Node)
+		if !ok {
+			continue
+		}
+		switch desc.Descriptor().MediaType {
+		case ocimanifest.UORSchemaMediaType:
+			continue
+		case ocispec.MediaTypeImageConfig:
+			continue
+		case ocimanifest.UORConfigMediaType:
+			continue
+		}
+		exists, err := desc.Attributes().Exists(titleAttribute)
+		if err != nil {
+			return nil, err
+		}
+		if exists {
+			target = desc.Descriptor()
+			break
+		}
+	}
+	bytes, err := remote.GetContent(ctx, source, target)
+	if err != nil {
+		return nil, err
+	}
+	return bytes, nil
+}
+
+//func (d DefaultManager) ReadLayerStream(ctx context.Context, source string, title string, remote registryclient.Remote) (io.ReadCloser, error) {
+//	// TODO
+//}
