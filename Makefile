@@ -79,9 +79,13 @@ vet:
 	$(GO) vet ./...
 .PHONY: vet
 
-generate:
-	protoc api/services/*/*/*.proto --go-grpc_out=. --go-grpc_opt=paths=source_relative --go_out=. --go_opt=paths=source_relative --proto_path=.
+protobuf_manager_output := api/services/collectionmanager/v1alpha1/manager.pb.go api/services/collectionmanager/v1alpha1/manager_grpc.pb.go
+
+generate: $(protobuf_manager_output)
 .PHONY: generate
+
+$(protobuf_manager_output): api/services/collectionmanager/v1alpha1/manager.proto
+	protoc api/services/*/*/*.proto --go-grpc_out=. --go-grpc_opt=paths=source_relative --go_out=. --go_opt=paths=source_relative --proto_path=.
 
 all: clean vendor test-unit build
 .PHONY: all
