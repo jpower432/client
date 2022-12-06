@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"net"
 	"os"
 	"os/signal"
@@ -95,6 +96,20 @@ func (o *ServeOptions) Run(ctx context.Context) error {
 	// Register the service with the gRPC server
 	managerapi.RegisterCollectionManagerServer(rpc, service)
 
+	// Delete the socket if it was not gracefully closed
+	// Unix sockets must be unlinked/deleted before reuse
+	stat, err := os.Stat(o.SocketLocation)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+	} else if stat.Mode().Type() == fs.ModeSocket {
+		err = os.Remove(o.SocketLocation)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Listen and serve
 	lis, err := net.Listen("unix", o.SocketLocation)
 	if err != nil {
@@ -104,18 +119,18 @@ func (o *ServeOptions) Run(ctx context.Context) error {
 	var wg sync.WaitGroup
 
 	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(sigCh, os.Interrupt, os.Kill, syscall.SIGTERM)
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 
 		select {
-		case <-sigCh:
-			s := <-sigCh
+		case s := <-sigCh:
 			o.Logger.Debugf("got signal %v, attempting graceful shutdown", s)
 			cancel()
 			rpc.GracefulStop()
+			lis.Close()
 		case <-ctx.Done():
 		}
 	}()
