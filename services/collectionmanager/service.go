@@ -72,6 +72,10 @@ func (s *service) ListContent(ctx context.Context, message *managerapi.List_Requ
 	if err != nil {
 		return &managerapi.List_Response{}, status.Error(codes.Internal, err.Error())
 	}
+	filteredCollection, err := collection.SubCollection(matcher)
+	if err != nil {
+		return &managerapi.List_Response{}, status.Error(codes.Internal, err.Error())
+	}
 
 	resultCollection := managerapi.Collection{
 		SchemaAddress:     "",
@@ -80,7 +84,7 @@ func (s *service) ListContent(ctx context.Context, message *managerapi.List_Requ
 	}
 	var files []*managerapi.File
 
-	nodes := collection.Nodes()
+	nodes := filteredCollection.Nodes()
 	for _, node := range nodes {
 		attributesJSON := node.Attributes().AsJSON()
 		spb := &structpb.Struct{}
