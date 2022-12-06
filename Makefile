@@ -87,7 +87,7 @@ generate: $(protobuf_manager_output)
 $(protobuf_manager_output): api/services/collectionmanager/v1alpha1/manager.proto
 	protoc api/services/*/*/*.proto --go-grpc_out=. --go-grpc_opt=paths=source_relative --go_out=. --go_opt=paths=source_relative --proto_path=.
 
-all: clean vendor test-unit build
+all: clean vendor generate test-unit build
 .PHONY: all
 
 cross-build-all: clean vendor test-unit cross-build
