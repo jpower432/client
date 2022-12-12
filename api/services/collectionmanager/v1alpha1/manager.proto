@@ -19,6 +19,8 @@ service CollectionManager {
   rpc PublishContent(Publish.Request) returns (Publish.Response) {}
   // RetrieveContent retrieves content based on the request.
   rpc RetrieveContent(Retrieve.Request) returns (Retrieve.Response) {}
+  // QueryLinks queries the registry for linked content.
+  rpc QueryLinks(QueryLinks.Request) returns (QueryLinks.Response) {}
   // RetrieveContentStream retrieves content based on the request.
   rpc ReadLayer(ReadLayer.Request) returns (ReadLayer.Response) {}
 //  // TODO - switch to stream response for robustness
@@ -87,6 +89,30 @@ message ReadLayerStream {
       bytes chunk = 2;
     }
   }
+}
+
+
+message QueryLinks {
+  message Request {
+    string digest = 1;
+    string host = 2;
+    FilterBy filter_by = 3;
+    AuthConfig auth = 4;
+  }
+  message Response {
+    Diagnostic diagnostic = 1;
+    repeated QueryResponse links = 2;
+  }
+}
+
+message QueryResponse {
+  string digest = 1;
+  google.protobuf.Struct attributes = 2;
+}
+
+message FilterBy {
+  google.protobuf.Struct filter = 1;
+  string schema_id = 2;
 }
 
 message Publish {

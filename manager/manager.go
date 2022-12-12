@@ -3,8 +3,11 @@ package manager
 import (
 	"context"
 
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	clientapi "github.com/uor-framework/uor-client-go/api/client/v1alpha1"
 	"github.com/uor-framework/uor-client-go/content"
+	"github.com/uor-framework/uor-client-go/model"
 	"github.com/uor-framework/uor-client-go/nodes/collection"
 	"github.com/uor-framework/uor-client-go/registryclient"
 	"github.com/uor-framework/uor-client-go/util/workspace"
@@ -26,6 +29,8 @@ type Manager interface {
 	// ReadLayer reads a layer of a collection given an ocispec.AnnotationTitle value.
 	// If successful, the bytes of the layer's data are returned.
 	ReadLayer(ctx context.Context, source string, title string, client registryclient.Remote) ([]byte, error)
+	// QueryLinks queries the attributes' endpoint for links and filters result by the provided matcher.
+	QueryLinks(ctx context.Context, host string, digest string, matcher model.Matcher, client registryclient.Remote) ([]ocispec.Descriptor, error)
 	// PullAll pulls linked collection to a specified storage destination.
 	// If successful, the file locations are returned.
 	// PullAll is similar to Pull with the exception that it walks a graph of linked collections

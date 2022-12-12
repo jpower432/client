@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -249,3 +250,57 @@ func (s *service) ReadLayer(ctx context.Context, message *managerapi.ReadLayer_R
 //func (s *service) ReadContentStream(ctx context.Context, message *managerapi.ReadLayerStream_Request, responseStream *managerapi.ReadLayerStream_Response) error {
 //	// TODO
 //}
+
+// QueryLinks queries the attribute endpoint on the registry for digest link information.
+func (s *service) QueryLinks(ctx context.Context, message *managerapi.QueryLinks_Request) (*managerapi.QueryLinks_Response, error) {
+	attrSet, err := config.ConvertToModel(message.FilterBy.Filter.AsMap())
+	if err != nil {
+		return &managerapi.QueryLinks_Response{}, status.Error(codes.Internal, err.Error())
+	}
+
+	authConf := authConfig{message.Auth}
+	client, err := orasclient.NewClient(
+		orasclient.WithCache(s.options.PullCache),
+		orasclient.WithCredentialFunc(authConf.Credential),
+		orasclient.WithPlainHTTP(s.options.PlainHTTP),
+		orasclient.SkipTLSVerify(s.options.Insecure),
+	)
+	if err != nil {
+		return &managerapi.QueryLinks_Response{}, status.Error(codes.Internal, err.Error())
+	}
+	defer func() {
+		if err := client.Destroy(); err != nil {
+			fmt.Println(err.Error())
+		}
+	}()
+
+	var matcher matchers.PartialAttributeMatcher = attrSet.List()
+	descriptors, err := s.mg.QueryLinks(ctx, message.Host, message.Digest, matcher, client)
+	if err != nil {
+		return &managerapi.QueryLinks_Response{}, status.Error(codes.Internal, err.Error())
+	}
+
+	var links []*managerapi.QueryResponse
+	for _, desc := range descriptors {
+		link := &managerapi.QueryResponse{
+			Digest: desc.Digest.String(),
+		}
+		if desc.Annotations != nil {
+			attrs, ok := desc.Annotations[uorspec.AnnotationUORAttributes]
+			if ok {
+				var jsonData map[string]interface{}
+				if err := json.Unmarshal([]byte(attrs), &jsonData); err != nil {
+					return &managerapi.QueryLinks_Response{}, status.Error(codes.Internal, err.Error())
+				}
+				linkAttr, err := structpb.NewStruct(jsonData)
+				if err != nil {
+					return &managerapi.QueryLinks_Response{}, status.Error(codes.Internal, err.Error())
+				}
+				link.Attributes = linkAttr
+			}
+		}
+		links = append(links, link)
+	}
+
+	return &managerapi.QueryLinks_Response{Links: links}, nil
+}
