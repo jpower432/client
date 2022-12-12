@@ -86,9 +86,12 @@ func (s *service) ListContent(ctx context.Context, message *managerapi.List_Requ
 
 	nodes := filteredCollection.Nodes()
 	for _, node := range nodes {
-		attributesJSON := node.Attributes().AsJSON()
+		attributesJSON, err := node.Attributes().MarshalJSON()
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 		spb := &structpb.Struct{}
-		err := json.Unmarshal(attributesJSON, spb)
+		err = json.Unmarshal(attributesJSON, spb)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}

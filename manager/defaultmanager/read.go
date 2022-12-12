@@ -4,10 +4,10 @@ import (
 	"context"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
 
 	"github.com/uor-framework/uor-client-go/attributes"
-	"github.com/uor-framework/uor-client-go/nodes/descriptor"
-	"github.com/uor-framework/uor-client-go/ocimanifest"
+	v2 "github.com/uor-framework/uor-client-go/nodes/descriptor/v2"
 	"github.com/uor-framework/uor-client-go/registryclient"
 )
 
@@ -21,16 +21,16 @@ func (d DefaultManager) ReadLayer(ctx context.Context, source string, title stri
 	for _, node := range graph.Nodes() {
 		// Check that this is a descriptor node and the blob is
 		// not a config or schema resource.
-		desc, ok := node.(*descriptor.Node)
+		desc, ok := node.(*v2.Node)
 		if !ok {
 			continue
 		}
 		switch desc.Descriptor().MediaType {
-		case ocimanifest.UORSchemaMediaType:
+		case uorspec.MediaTypeSchemaDescriptor:
 			continue
 		case ocispec.MediaTypeImageConfig:
 			continue
-		case ocimanifest.UORConfigMediaType:
+		case uorspec.MediaTypeConfiguration:
 			continue
 		}
 		exists, err := desc.Attributes().Exists(titleAttribute)
