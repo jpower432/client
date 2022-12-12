@@ -22,6 +22,10 @@ func (d DefaultManager) QueryLinks(ctx context.Context, host, digest string, mat
 		return nil, err
 	}
 
+	if matcher == nil {
+		return result.Manifests, nil
+	}
+
 	var collections []collection.Collection
 	for _, desc := range result.Manifests {
 		if desc.Annotations == nil {

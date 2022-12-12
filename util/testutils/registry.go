@@ -27,6 +27,7 @@ func NewRegistry(t *testing.T, blobs [][]byte, manifests [][]byte) http.Handler 
 		d := digest.FromBytes(manifest)
 		manifestsByDigest[d.String()] = manifest
 		manifestDesc := content.NewDescriptorFromBytes(ocispec.MediaTypeArtifactManifest, manifest)
+		manifestDesc.Annotations = map[string]string{"namespaceHint": ""}
 		manifestDescs = append(manifestDescs, manifestDesc)
 	}
 

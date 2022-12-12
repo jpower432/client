@@ -253,10 +253,6 @@ func (s *service) ReadLayer(ctx context.Context, message *managerapi.ReadLayer_R
 
 // QueryLinks queries the attribute endpoint on the registry for digest link information.
 func (s *service) QueryLinks(ctx context.Context, message *managerapi.QueryLinks_Request) (*managerapi.QueryLinks_Response, error) {
-	attrSet, err := config.ConvertToModel(message.FilterBy.Filter.AsMap())
-	if err != nil {
-		return &managerapi.QueryLinks_Response{}, status.Error(codes.Internal, err.Error())
-	}
 
 	authConf := authConfig{message.Auth}
 	client, err := orasclient.NewClient(
@@ -274,7 +270,15 @@ func (s *service) QueryLinks(ctx context.Context, message *managerapi.QueryLinks
 		}
 	}()
 
-	var matcher matchers.PartialAttributeMatcher = attrSet.List()
+	var matcher matchers.PartialAttributeMatcher
+	if message.FilterBy != nil {
+		attrSet, err := config.ConvertToModel(message.FilterBy.Filter.AsMap())
+		if err != nil {
+			return &managerapi.QueryLinks_Response{}, status.Error(codes.Internal, err.Error())
+		}
+		matcher = attrSet.List()
+	}
+
 	descriptors, err := s.mg.QueryLinks(ctx, message.Host, message.Digest, matcher, client)
 	if err != nil {
 		return &managerapi.QueryLinks_Response{}, status.Error(codes.Internal, err.Error())
