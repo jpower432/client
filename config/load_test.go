@@ -7,7 +7,6 @@ import (
 	uorspec "github.com/uor-framework/collection-spec/specs-go/v1alpha1"
 
 	"github.com/uor-framework/uor-client-go/api/client/v1alpha1"
-	"github.com/uor-framework/uor-client-go/schema"
 )
 
 func TestReadAttributeQuery(t *testing.T) {
@@ -122,14 +121,18 @@ func TestReadSchemaConfiguration(t *testing.T) {
 					APIVersion: v1alpha1.GroupVersion,
 				},
 				Schema: v1alpha1.SchemaConfigurationSpec{
-					AttributeTypes: map[string]schema.Type{
-						"test": schema.TypeString,
-					},
+					ID:         "myschema",
+					SchemaPath: "mypath",
 				},
 			},
 		},
 		{
-			name:     "Failure/InvalidConfig",
+			name:     "Failure/InvalidConfigNoPath",
+			path:     "testdata/invalid-schema.yaml",
+			expError: "no schema path provided in schema config",
+		},
+		{
+			name:     "Failure/InvalidConfigWrongType",
 			path:     "testdata/valid-attr.yaml",
 			expError: "config kind AttributeQuery, does not match expected SchemaConfiguration",
 		},
