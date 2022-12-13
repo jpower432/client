@@ -1,6 +1,6 @@
-// Events RPC protocol version v1alpha1
+// Collection Manager RPC protocol version v1alpha1
 //
-// This file defines version v1alpha of the RPC protocol. To implement a plugin
+// This file defines version v1alpha1 of the RPC protocol. To implement a plugin
 // against this protocol, copy this definition into your own codebase and
 // use protoc to generate stubs for your target language.
 
@@ -47,7 +47,8 @@ message List {
   }
   message Response {
     Collection collection = 1;
-    repeated Diagnostic diagnostics = 2;
+    string digest = 2;
+    repeated Diagnostic diagnostics = 3;
   }
 }
 

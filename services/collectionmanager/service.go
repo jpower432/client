@@ -17,6 +17,7 @@ import (
 	"github.com/uor-framework/uor-client-go/config"
 	"github.com/uor-framework/uor-client-go/content"
 	"github.com/uor-framework/uor-client-go/manager"
+	v2 "github.com/uor-framework/uor-client-go/nodes/descriptor/v2"
 	"github.com/uor-framework/uor-client-go/registryclient/orasclient"
 	"github.com/uor-framework/uor-client-go/util/workspace"
 )
@@ -73,6 +74,13 @@ func (s *service) ListContent(ctx context.Context, message *managerapi.List_Requ
 	if err != nil {
 		return &managerapi.List_Response{}, status.Error(codes.Internal, err.Error())
 	}
+
+	// Grab collection root information for later
+	root, err := collection.Root()
+	if err != nil {
+		return &managerapi.List_Response{}, status.Error(codes.Internal, err.Error())
+	}
+
 	filteredCollection, err := collection.SubCollection(matcher)
 	if err != nil {
 		return &managerapi.List_Response{}, status.Error(codes.Internal, err.Error())
@@ -103,8 +111,15 @@ func (s *service) ListContent(ctx context.Context, message *managerapi.List_Requ
 	}
 	resultCollection.Files = files
 
+	var digest string
+	rootDesc, ok := root.(*v2.Node)
+	if ok {
+		digest = rootDesc.Descriptor().Digest.String()
+	}
+
 	listResponse := managerapi.List_Response{
 		Collection:  &resultCollection,
+		Digest:      digest,
 		Diagnostics: nil,
 	}
 	return &listResponse, nil

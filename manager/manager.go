@@ -22,7 +22,7 @@ type Manager interface {
 	// If successful, the root descriptor is returned.
 	Push(ctx context.Context, destination string, remote registryclient.Remote) (string, error)
 	// List walks a collection and returns the Node metadata
-	List(ctx context.Context, source string, remote registryclient.Remote) (*collection.Collection, error)
+	List(ctx context.Context, source string, remote registryclient.Remote) (*collection.Collection, string, error)
 	// Pull pulls a single collection to a specified storage destination.
 	// If successful, the file locations are returned.
 	Pull(ctx context.Context, source string, remote registryclient.Remote, destination content.Store) ([]string, error)
