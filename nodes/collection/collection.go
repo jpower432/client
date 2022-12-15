@@ -9,9 +9,8 @@ import (
 )
 
 var (
-	_ model.Node     = &Collection{}
-	_ model.Rooted   = &Collection{}
-	_ model.Iterator = &Collection{}
+	_ model.Node   = &Collection{}
+	_ model.Rooted = &Collection{}
 )
 
 // Collection is implementation of a model Node represent one OCI artifact
@@ -30,18 +29,15 @@ type Collection struct {
 	to map[string]map[string]model.Edge
 	// Location of the collection (local or remote)
 	Location string
-	// Iterator for the collection node
-	*ByAttributesIterator
 }
 
 // New creates an empty Collection with the specified ID.
 func New(id string) *Collection {
 	return &Collection{
-		id:                   id,
-		nodes:                map[string]model.Node{},
-		from:                 map[string]map[string]model.Edge{},
-		to:                   map[string]map[string]model.Edge{},
-		ByAttributesIterator: NewByAttributesIterator(nil),
+		id:    id,
+		nodes: map[string]model.Node{},
+		from:  map[string]map[string]model.Edge{},
+		to:    map[string]map[string]model.Edge{},
 	}
 }
 
