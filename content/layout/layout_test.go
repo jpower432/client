@@ -278,7 +278,7 @@ func TestResolveByAttribute(t *testing.T) {
 			cacheDir: "testdata/attributes",
 			ref:      "localhost:5001/test1:latest",
 			matcher: matchers.PartialAttributeMatcher{
-				"type": attributes.NewString("type", "jpg"),
+				"type": attributes.NewString("jpg"),
 			},
 			expRes: []ocispec.Descriptor{
 				{
@@ -294,7 +294,7 @@ func TestResolveByAttribute(t *testing.T) {
 			cacheDir: "testdata/valid",
 			ref:      "localhost:5001/test:latest",
 			matcher: matchers.PartialAttributeMatcher{
-				"type": attributes.NewString("type", "png"),
+				"type": attributes.NewString("png"),
 			},
 		},
 		{

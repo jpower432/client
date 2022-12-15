@@ -15,7 +15,7 @@ func TestSchema_Validate(t *testing.T) {
 	type spec struct {
 		name       string
 		properties map[string]map[string]string
-		doc        model.AttributeSet
+		doc        map[string]model.AttributeValue
 		expRes     bool
 		expError   string
 	}
@@ -28,8 +28,8 @@ func TestSchema_Validate(t *testing.T) {
 					"type": "number",
 				},
 			},
-			doc: attributes.Attributes{
-				"size": attributes.NewFloat("size", 1.0),
+			doc: map[string]model.AttributeValue{
+				"size": attributes.NewFloat(1.0),
 			},
 			expRes: true,
 		},
@@ -40,8 +40,8 @@ func TestSchema_Validate(t *testing.T) {
 					"type": "boolean",
 				},
 			},
-			doc: attributes.Attributes{
-				"size": attributes.NewFloat("size", 1.0),
+			doc: map[string]model.AttributeValue{
+				"size": attributes.NewFloat(1.0),
 			},
 			expRes:   false,
 			expError: "size: invalid type. expected: boolean, given: integer",
@@ -53,8 +53,8 @@ func TestSchema_Validate(t *testing.T) {
 					"type": "number",
 				},
 			},
-			doc: attributes.Attributes{
-				"name": attributes.NewString("name", "test"),
+			doc: map[string]model.AttributeValue{
+				"name": attributes.NewString("test"),
 			},
 			expError: "(root): size is required",
 			expRes:   false,
@@ -69,7 +69,8 @@ func TestSchema_Validate(t *testing.T) {
 			schema, err := New(loader)
 			require.NoError(t, err)
 
-			result, err := schema.Validate(c.doc)
+			set := attributes.NewSet(c.doc)
+			result, err := schema.Validate(set)
 			if c.expError != "" {
 				require.EqualError(t, err, c.expError)
 			} else {

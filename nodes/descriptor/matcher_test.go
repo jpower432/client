@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/uor-framework/uor-client-go/attributes"
+	"github.com/uor-framework/uor-client-go/model"
 
 	"github.com/stretchr/testify/require"
 
@@ -11,11 +12,11 @@ import (
 )
 
 func TestJSONSubsetMatcher_Matches(t *testing.T) {
-	mockAttributes := attributes.Attributes{
-		"kind":    attributes.NewString("kind", "jpg"),
-		"name":    attributes.NewString("name", "fish.jpg"),
-		"another": attributes.NewString("another", "attribute"),
-	}
+	mockAttributes := attributes.NewSet(map[string]model.AttributeValue{
+		"kind":    attributes.NewString("jpg"),
+		"name":    attributes.NewString("fish.jpg"),
+		"another": attributes.NewString("attribute"),
+	})
 
 	n := &testutils.FakeNode{A: mockAttributes}
 	m := JSONSubsetMatcher(`{"name":"fish.jpg"}`)
