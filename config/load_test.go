@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -70,10 +71,8 @@ func TestReadDataSetConfig(t *testing.T) {
 					SchemaAddress: "localhost:5001/schema:latest",
 					Files: []v1alpha1.File{
 						{
-							File: "*.json",
-							Attributes: map[string]interface{}{
-								"fiction": true,
-							},
+							File:       "*.json",
+							Attributes: json.RawMessage(`{"fiction":true}`),
 							FileInfo: uorspec.File{
 								UID: -1,
 								GID: -1,
